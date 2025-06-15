@@ -1,12 +1,14 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import DashboardNav from "@/components/DashboardNav";
+import Live from "./Live";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="bg-background min-h-screen w-full text-foreground">
+      <DashboardNav />
+      <main className="max-w-screen-xl mx-auto">
+        <Live />
+      </main>
     </div>
   );
 };
