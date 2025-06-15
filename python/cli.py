@@ -2,7 +2,8 @@ import argparse
 from pathlib import Path
 
 import yaml
-from prefect.flows import run_all, ingest, train, backtest, cleanup
+from python.prefect.flows import run_all, ingest, train, backtest
+from python.prefect.cleanup import cleanup
 
 CONFIG_DIR = Path(__file__).resolve().parent / "configs"
 
@@ -64,7 +65,7 @@ def main(argv=None):
     elif args.command == "backtest":
         backtest()
     elif args.command == "cleanup":
-        cleanup(config=load_config("cleanup"))
+        cleanup()
 
 
 if __name__ == "__main__":
