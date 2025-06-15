@@ -6,7 +6,7 @@ import pandas as pd
 import yaml
 import yfinance as yf
 from prefect import flow, task
-from .cleanup import cleanup as cleanup_flow
+from .cleanup import cleanup as cleanup_flow, _disk_free_gb
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
@@ -42,6 +42,15 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     df.to_parquet(path)
     subprocess.run(["dvc", "add", str(path)], cwd=ROOT_DIR, check=True)
     return path
+
+
+@task(log_prints=True)
+def ensure_disk_space(threshold_gb: float = 5.0) -> None:
+    """Trigger cleanup when free disk space drops below ``threshold_gb``."""
+    free_gb = _disk_free_gb(ROOT_DIR)
+    if free_gb < threshold_gb:
+        print(f"Low disk space ({free_gb:.2f} GB); running cleanup")
+        cleanup_flow()
 
 
 @task(log_prints=True)
@@ -103,7 +112,9 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     data_cfg = load_config("data")
     optuna_cfg = load_config("optuna")
     ingest(freq, config=data_cfg)
+    ensure_disk_space()
     train(config=optuna_cfg)
+    ensure_disk_space()
     backtest()
     if do_cleanup:
         cleanup_flow()
