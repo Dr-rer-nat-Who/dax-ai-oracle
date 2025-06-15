@@ -15,6 +15,7 @@ try:  # optional torch usage
 except Exception:  # pragma: no cover - torch not installed
     torch = None
 
+import pandas as pd
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from .cleanup import remove_checkpoints, CHECKPOINT_BASE
@@ -24,6 +25,25 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT_DIR / "python" / "configs"
 MODELS_DIR = ROOT_DIR / "python" / "models"
 MODELS_DIR.mkdir(exist_ok=True)
+DATA_DIR = ROOT_DIR / "python" / "data"
+
+
+def _load_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Load feature and label arrays with a train/val split."""
+    feats = DATA_DIR / "features.parquet"
+    labels = DATA_DIR / "labels.parquet"
+    if feats.exists() and labels.exists():
+        X_df = pd.read_parquet(feats)
+        y_df = pd.read_parquet(labels)
+        X = X_df.to_numpy()
+        y = y_df.iloc[:, 0].to_numpy()
+    else:
+        rng = np.random.default_rng(42)
+        X = rng.normal(size=(200, 10))
+        true_w = rng.normal(size=10)
+        y = X.dot(true_w) + rng.normal(scale=0.1, size=200)
+    split = int(0.8 * len(X))
+    return X[:split], X[split:], y[:split], y[split:]
 
 # checkpoint storage setup
 try:
@@ -96,14 +116,7 @@ def evaluate(model: Dict[str, Any], X: np.ndarray, y: np.ndarray) -> float:
 def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
     """Run an Optuna study for a single model family."""
 
-    # create dummy regression data
-    rng = np.random.default_rng(42)
-    X = rng.normal(size=(200, 10))
-    true_w = rng.normal(size=10)
-    y = X.dot(true_w) + rng.normal(scale=0.1, size=200)
-    split = int(0.8 * len(X))
-    X_train, X_val = X[:split], X[split:]
-    y_train, y_val = y[:split], y[split:]
+    X_train, X_val, y_train, y_val = _load_dataset()
 
     mlflow.set_tracking_uri(f"file://{ROOT_DIR / 'mlruns'}")
     mlflow.set_experiment(name)
@@ -120,10 +133,13 @@ def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
             mlflow.log_metric("mse", metric)
         return metric
 
-    study = optuna.create_study(direction="minimize")
+    pruner = optuna.pruners.MedianPruner()
+    study = optuna.create_study(direction="minimize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials)
 
-    best_model = train_model(study.best_params, X_train, y_train)
+    X_full = np.vstack([X_train, X_val])
+    y_full = np.concatenate([y_train, y_val])
+    best_model = train_model(study.best_params, X_full, y_full)
     with open(MODELS_DIR / f"{name}.pkl", "wb") as f:
         pickle.dump(best_model, f)
 
