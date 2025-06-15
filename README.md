@@ -86,3 +86,18 @@ streamlit run python/dashboard/app.py
 The dashboard provides live signals, a model leaderboard, equity curves and
 explainability plots.
 
+## CLI usage
+
+Run the Prefect flows directly from the command line:
+
+```bash
+# Run everything and launch the dashboard
+python -m python.cli run-all --freq all --cleanup yes
+
+# Or run individual steps
+python -m python.cli ingest --freq day
+python -m python.cli feature-build --freq day
+python -m python.cli train-and-evaluate
+python -m python.cli backtest
+```
+
