@@ -94,6 +94,9 @@ Run the Prefect flows directly from the command line:
 # Run everything and launch the dashboard
 python -m python.cli run-all --freq all --cleanup yes
 
+# ``run-all`` checks available disk space before training and backtesting.
+# If less than 5 GB remain it automatically invokes the cleanup flow.
+
 # Or run individual steps
 python -m python.cli ingest --freq day
 python -m python.cli feature-build --freq day

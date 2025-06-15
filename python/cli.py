@@ -5,7 +5,7 @@ import subprocess
 import yaml
 from python.prefect.flows import ingest, feature_build, backtest
 from python.prefect.train_and_evaluate import train_all
-from python.prefect.cleanup import cleanup
+from python.prefect.cleanup import cleanup, _disk_free_gb
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -15,6 +15,14 @@ CONFIG_DIR = Path(__file__).resolve().parent / "configs"
 def load_config(name: str) -> dict:
     with open(CONFIG_DIR / f"{name}.yaml", "r") as f:
         return yaml.safe_load(f)
+
+
+def _ensure_disk_space(threshold_gb: float = 5.0) -> None:
+    """Trigger cleanup flow if free disk space is below threshold."""
+    free_gb = _disk_free_gb(ROOT_DIR)
+    if free_gb < threshold_gb:
+        print(f"Low disk space ({free_gb:.2f} GB); running cleanup")
+        cleanup()
 
 
 def main(argv=None):
@@ -71,7 +79,9 @@ def main(argv=None):
     if args.command == "run-all":
         ingest(freq=args.freq, config=data_cfg)
         feature_build(freq=args.freq)
+        _ensure_disk_space()
         train_all()
+        _ensure_disk_space()
         backtest()
         if args.cleanup == "yes":
             cleanup()
