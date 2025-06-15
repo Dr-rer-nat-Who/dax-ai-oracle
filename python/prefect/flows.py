@@ -1,14 +1,19 @@
 from pathlib import Path
 import subprocess
+import sys
 
 import pandas as pd
 import yaml
 import yfinance as yf
 from prefect import flow, task
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from features.pipelines import compute_features
+
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "python" / "data"
+FEATURES_DIR = ROOT_DIR / "python" / "features"
 
 
 def load_config(name: str) -> dict:
@@ -36,6 +41,20 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     df.to_parquet(path)
     subprocess.run(["dvc", "add", str(path)], cwd=ROOT_DIR, check=True)
     return path
+
+
+@task(log_prints=True)
+def build_features(path: Path, exogenous: Path | None = None) -> Path:
+    """Read OHLCV parquet, generate features and store them with DVC."""
+    df = pd.read_parquet(path)
+    exo_df = pd.read_parquet(exogenous) if exogenous else None
+    feats = compute_features(df, exo_df)
+    dest_dir = FEATURES_DIR / path.parent.name
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / path.name
+    feats.to_parquet(dest)
+    subprocess.run(["dvc", "add", str(dest)], cwd=ROOT_DIR, check=True)
+    return dest
 
 @flow
 def ingest(freq: str = "day", config: dict | None = None):
@@ -97,3 +116,30 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     backtest()
     if do_cleanup:
         cleanup(config=cleanup_cfg)
+
+
+@flow
+def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
+    """Build engineered features from Parquet price data."""
+    if exogenous is None:
+        exogenous = {}
+
+    if freq == "all":
+        freqs = [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
+    else:
+        freqs = [freq]
+
+    ensure_dvc_repo()
+
+    results: dict[str, list[str]] = {}
+    for f in freqs:
+        paths = []
+        for src in (DATA_DIR / f).glob("*.parquet"):
+            exo_path = exogenous.get(src.stem)
+            exo = Path(exo_path) if exo_path else None
+            dest = build_features(src, exogenous=exo)
+            paths.append(str(dest))
+        results[f] = paths
+    return results
+
+
