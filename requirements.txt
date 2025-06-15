@@ -1,0 +1,15 @@
+prefect
+yfinance
+pandas
+pyarrow
+dvc
+mlflow
+optuna
+ta-lib
+vectorbt
+backtrader
+streamlit
+scikit-learn
+lightgbm
+catboost
+pytorch-lightning
