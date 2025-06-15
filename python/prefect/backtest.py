@@ -81,27 +81,39 @@ def _vectorbt_metrics(prices: pd.DataFrame, preds: np.ndarray) -> Tuple[float, f
     return acc, bal_acc, f1, signals
 
 
-class _MLStrategy(bt.Strategy):  # type: ignore[misc]
-    params: dict = dict(signals=None)
+if bt is not None:
+    class _MLStrategy(bt.Strategy):  # type: ignore[misc]
+        params: dict = dict(signals=None)
 
-    def __init__(self):
-        self.i = 0
+        def __init__(self):
+            self.i = 0
 
-    def next(self):  # pragma: no cover - relies on backtrader
-        sig = self.p.signals[self.i]
-        if not self.position:
-            if sig > 0:
-                self.buy()
-            elif sig < 0:
-                self.sell()
-        else:
-            if sig == 0:
-                self.close()
-            elif sig > 0 and self.position.size < 0:
-                self.close(); self.buy()
-            elif sig < 0 and self.position.size > 0:
-                self.close(); self.sell()
-        self.i += 1
+        def next(self):  # pragma: no cover - relies on backtrader
+            sig = self.p.signals[self.i]
+            if not self.position:
+                if sig > 0:
+                    self.buy()
+                elif sig < 0:
+                    self.sell()
+            else:
+                if sig == 0:
+                    self.close()
+                elif sig > 0 and self.position.size < 0:
+                    self.close(); self.buy()
+                elif sig < 0 and self.position.size > 0:
+                    self.close(); self.sell()
+            self.i += 1
+else:  # pragma: no cover - backtrader optional
+    class _MLStrategy:
+        """Fallback when backtrader is missing."""
+
+        params: dict = dict(signals=None)
+
+        def __init__(self):
+            self.i = 0
+
+        def next(self) -> None:
+            self.i += 1
 
 
 def _backtrader_metrics(prices: pd.DataFrame, signals: np.ndarray) -> Tuple[float, float, float, float]:

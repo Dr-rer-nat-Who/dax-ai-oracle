@@ -101,3 +101,14 @@ python -m python.cli train-and-evaluate
 python -m python.cli backtest
 ```
 
+
+## Testing
+
+Run the automated checks locally with:
+
+```bash
+npm run lint
+pytest -q
+```
+
+Continuous integration runs the same commands via GitHub Actions (`.github/workflows/ci.yml`).
