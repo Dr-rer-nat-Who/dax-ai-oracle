@@ -16,12 +16,21 @@ except Exception:  # pragma: no cover - torch not installed
     torch = None
 
 from prefect import flow, task
+from prefect.filesystems import LocalFileSystem
+from .cleanup import remove_checkpoints, CHECKPOINT_BASE
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT_DIR / "python" / "configs"
 MODELS_DIR = ROOT_DIR / "python" / "models"
 MODELS_DIR.mkdir(exist_ok=True)
+
+# checkpoint storage setup
+try:
+    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
+except Exception:
+    pass
+CHECKPOINT_STORAGE = "local-file-system/checkpoints"
 
 
 def load_config(name: str) -> Dict[str, Any]:
@@ -127,11 +136,12 @@ def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
         mlflow.delete_run(run_id)
 
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def train_all(n_trials: int = 60) -> None:
     cfg = load_config("optuna")
     for name, space in cfg.items():
         run_study(name, space or {}, n_trials)
+    remove_checkpoints()
 
 
 __all__ = ["train_all", "run_study"]
