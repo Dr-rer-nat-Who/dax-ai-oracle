@@ -74,3 +74,15 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 For an overview of the full data science pipeline, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Dashboard
+
+After running the Prefect flows and generating models, you can launch the
+Streamlit dashboard with:
+
+```bash
+streamlit run python/dashboard/app.py
+```
+
+The dashboard provides live signals, a model leaderboard, equity curves and
+explainability plots.
+
