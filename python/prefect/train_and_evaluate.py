@@ -178,12 +178,8 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
     X_full = np.vstack([X_train, X_val])
     y_full = np.concatenate([y_train, y_val])
     best_model = train_model(study.best_params, X_full, y_full)
-<<<<<<< codex/replace-placeholder-models-with-real-implementations
-    save_model(name, best_model)
-=======
-    with open(MODELS_DIR / f"{model}_{freq}_{label}.pkl", "wb") as f:
-        pickle.dump(best_model, f)
->>>>>>> main
+    model_name = f"{model}_{freq}_{label}"
+    save_model(model_name, best_model)
 
     exp = mlflow.get_experiment_by_name(exp_name)
     if exp is None:
