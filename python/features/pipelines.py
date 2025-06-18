@@ -1,11 +1,18 @@
 import numpy as np
 import pandas as pd
-import talib
-import talib.abstract as ta
+try:
+    import talib  # type: ignore
+    import talib.abstract as ta
+except Exception:  # pragma: no cover - talib optional
+    talib = None
+    ta = None
 
 
 def _talib_features(df: pd.DataFrame) -> pd.DataFrame:
     """Compute all TA-Lib indicators available for the dataframe."""
+    if ta is None:
+        return pd.DataFrame(index=df.index)
+
     inputs = {
         "open": df["Open"],
         "high": df["High"],
