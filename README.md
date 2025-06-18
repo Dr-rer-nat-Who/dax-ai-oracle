@@ -50,6 +50,19 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Installation
+
+Install the JavaScript dependencies with npm and the Python packages required for
+testing using `pip`:
+
+```bash
+npm i
+pip install -r requirements.txt
+```
+
+The optional `scripts/setup.sh` script and `Makefile` also install these
+dependencies to speed up local setup and CI.
+
 ## What technologies are used for this project?
 
 This project is built with:
@@ -71,3 +84,47 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+For an overview of the full data science pipeline, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Dashboard
+
+After running the Prefect flows and generating models, you can launch the
+Streamlit dashboard with:
+
+```bash
+streamlit run python/dashboard/app.py
+```
+
+The dashboard provides live signals, a model leaderboard, equity curves and
+explainability plots.
+
+## CLI usage
+
+Run the Prefect flows directly from the command line:
+
+```bash
+# Run everything and launch the dashboard
+python -m python.cli run-all --freq all --cleanup yes
+
+# ``run-all`` checks available disk space before training and backtesting.
+# If less than 5 GB remain it automatically invokes the cleanup flow.
+
+# Or run individual steps
+python -m python.cli ingest --freq day
+python -m python.cli feature-build --freq day
+python -m python.cli train-and-evaluate
+python -m python.cli backtest
+```
+
+
+## Testing
+
+Run the automated checks locally with:
+
+```bash
+npm run lint
+pytest -q
+```
+
+Continuous integration runs the same commands via GitHub Actions (`.github/workflows/ci.yml`).
