@@ -41,6 +41,7 @@ def test_compute_features_with_exogenous(monkeypatch):
     feats = p.compute_features(df, exogenous=exo)
     assert "wick_upper" in feats.columns
     assert "dax_future_spread" in feats.columns
+    assert "holiday_flag" in feats.columns
     assert len(feats) == len(df)
 
 
@@ -53,4 +54,10 @@ def test_label_generation_functions():
     assert len(b1) == len(df)
     assert set(t3.unique()) <= {1, 0, -1}
     assert np.isfinite(r).all()
+
+
+def test_eurex_holiday_flag():
+    idx = pd.to_datetime(["2021-12-27", "2021-12-29"])
+    feats = p._datetime_features(idx)
+    assert list(feats["holiday_flag"]) == [1, 0]
 
