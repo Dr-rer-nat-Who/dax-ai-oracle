@@ -49,7 +49,8 @@ def _price_action_features(df: pd.DataFrame) -> pd.DataFrame:
     feats["wick_lower"] = lower_wick
     feats["wick_ratio_upper"] = upper_wick / range_
     feats["wick_ratio_lower"] = lower_wick / range_
-    feats["ATR"] = talib.ATR(high, low, close)
+    atr = talib.ATR(high, low, close) if talib is not None else pd.Series([0] * len(df), index=df.index)
+    feats["ATR"] = atr
     return feats
 
 
