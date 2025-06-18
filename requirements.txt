@@ -15,3 +15,4 @@ catboost
 pytorch-lightning
 stable-baselines3
 gymnasium
+pandas_market_calendars
