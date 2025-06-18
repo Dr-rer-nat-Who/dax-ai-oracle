@@ -98,8 +98,8 @@ def compute_features(
     features = features.join(_talib_features(df))
     features = features.join(_price_action_features(df))
     returns = df["Close"].pct_change().fillna(0)
-    features["emb_32"] = _window_embeddings(returns, 32)
-    features["emb_64"] = _window_embeddings(returns, 64)
+    features["emb_32"] = _window_embeddings(returns, 32).apply(list)
+    features["emb_64"] = _window_embeddings(returns, 64).apply(list)
     features = features.join(_datetime_features(df.index))
     if exogenous is not None and "Close" in exogenous:
         aligned = exogenous["Close"].reindex(df.index, method="ffill")
