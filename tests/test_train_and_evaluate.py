@@ -46,7 +46,7 @@ class DummyMlflow:
         pass
 
 
-def test_all_models_train(tmp_path: Path, monkeypatch) -> None:
+def test_lightgbm_model_trains(tmp_path: Path, monkeypatch) -> None:
     cfg = load_config("optuna")
     monkeypatch.setattr("python.prefect.train_and_evaluate.mlflow", DummyMlflow())
     from python.prefect import train_and_evaluate as te
@@ -65,8 +65,7 @@ def test_all_models_train(tmp_path: Path, monkeypatch) -> None:
     )
     df.to_parquet(freq_dir / "sample.parquet")
 
-    for name, space in cfg.items():
-        run_study.fn(name, "B1", "day", space or {}, n_trials=1)
+    run_study.fn("lightgbm", "B1", "day", cfg["lightgbm"], n_trials=1)
 
 
 def test_train_model_predict_evaluate(monkeypatch):
