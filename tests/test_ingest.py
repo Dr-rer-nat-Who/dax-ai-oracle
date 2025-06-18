@@ -78,6 +78,7 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
         return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
 
     monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
+    monkeypatch.setattr(flows.pd.Timestamp, "utcnow", staticmethod(lambda: pd.Timestamp("2024-02-01")))
 
     dest = flows.DATA_DIR / "raw" / "minute"
     dest.mkdir(parents=True, exist_ok=True)
@@ -101,6 +102,39 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
     assert df.index.tz is None
     for s, e in calls:
         assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
+
+
+def test_fetch_and_store_minute_start_cutoff(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    starts = []
+
+    def fake_download(ticker, start, end, interval, auto_adjust, progress):
+        starts.append(start)
+        idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
+        return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
+
+    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
+    monkeypatch.setattr(flows.pd.Timestamp, "utcnow", staticmethod(lambda: pd.Timestamp("2024-05-30")))
+
+    path = flows.fetch_and_store.fn(
+        ticker="TEST",
+        start="2024-03-01",
+        end="2024-05-31",
+        freq="minute",
+    )
+
+    assert path.exists()
+    cutoff = pd.Timestamp("2024-04-30", tz="UTC")
+    ts = pd.Timestamp(starts[0])
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    assert ts >= cutoff
 
 
 def test_fetch_and_store_handles_missing_error(tmp_path, monkeypatch):
