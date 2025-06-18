@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+
 import numpy as np
 import pandas as pd
 
@@ -49,14 +50,23 @@ def test_all_models_train(tmp_path: Path, monkeypatch) -> None:
     cfg = load_config("optuna")
     monkeypatch.setattr("python.prefect.train_and_evaluate.mlflow", DummyMlflow())
     from python.prefect import train_and_evaluate as te
+
     te.DATA_DIR = tmp_path
-    import pandas as pd
-    X = pd.DataFrame(np.random.rand(20, 4))
-    y = pd.DataFrame({"y": np.random.rand(20)})
-    X.to_parquet(tmp_path / "features.parquet")
-    y.to_parquet(tmp_path / "labels.parquet")
+    freq_dir = tmp_path / "day"
+    freq_dir.mkdir()
+    df = pd.DataFrame(
+        {
+            "Open": np.linspace(1, 2, 20),
+            "High": np.linspace(1, 2, 20),
+            "Low": np.linspace(1, 2, 20),
+            "Close": np.linspace(1, 2, 20),
+            "f0": np.random.rand(20),
+        }
+    )
+    df.to_parquet(freq_dir / "sample.parquet")
+
     for name, space in cfg.items():
-        run_study.fn(name, space or {}, n_trials=1)
+        run_study.fn(name, "B1", "day", space or {}, n_trials=1)
 
 
 def test_train_model_predict_evaluate(monkeypatch):
