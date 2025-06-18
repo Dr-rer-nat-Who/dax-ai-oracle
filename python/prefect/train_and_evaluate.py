@@ -32,6 +32,7 @@ CONFIG_DIR = ROOT_DIR / "python" / "configs"
 MODELS_DIR = ROOT_DIR / "python" / "models"
 MODELS_DIR.mkdir(exist_ok=True)
 DATA_DIR = ROOT_DIR / "python" / "data"
+FEATURES_DIR = ROOT_DIR / "python" / "features"
 
 # Valid label/frequency pairs for each model family as defined in the project
 # blueprint. This restricts ``train_all`` to exactly the 27 intended
@@ -51,14 +52,14 @@ MODEL_LABEL_FREQ: Dict[str, Dict[str, list[str]]] = {
 
 
 def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-    """Load features from ``python/data/<freq>/`` and generate labels.
+    """Load engineered features from ``python/features/<freq>/`` and generate labels.
 
     The data is read in chunks using ``pyarrow.dataset`` so that even very large
     parquet collections can be processed without loading everything into memory
     at once.
     """
 
-    dir_path = DATA_DIR / freq
+    dir_path = FEATURES_DIR / freq
     paths = sorted(dir_path.glob("*.parquet"))
 
     from ..features import labels as lbl
