@@ -101,3 +101,32 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
     assert df.index.tz is None
     for s, e in calls:
         assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
+
+
+def test_fetch_and_store_empty_minute_df(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    def fake_download(ticker, start, end, interval, auto_adjust, progress):
+        return pd.DataFrame(
+            columns=["Open", "High", "Low", "Close"],
+            index=pd.DatetimeIndex([], tz="UTC"),
+        )
+
+    monkeypatch.setattr(
+        flows,
+        "yf",
+        type("_YF", (), {"download": staticmethod(fake_download)}),
+    )
+
+    path = flows.fetch_and_store.fn(
+        ticker="TEST",
+        start="2020-01-01",
+        end="2020-01-02",
+        freq="minute",
+    )
+
+    assert path.exists()
+    assert pd.read_parquet(path).empty

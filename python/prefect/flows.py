@@ -115,8 +115,10 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             new.index = pd.to_datetime(new.index)
         df = pd.concat([existing, new]) if not existing.empty else new
 
-    if not df.empty:
-        df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
+    if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
+        df.index = pd.to_datetime(df.index).tz_convert(None)
+
+
 
     if freq == "minute" and not df.empty:
         cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=90)
