@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 import python.cli as cli
