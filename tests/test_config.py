@@ -7,3 +7,4 @@ def test_load_configs():
     assert "tickers" in cfg
     cfg2 = flows.load_config("optuna")
     assert isinstance(cfg2, dict)
+    assert "n_linear" in cfg2
