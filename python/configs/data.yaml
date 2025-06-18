@@ -8,3 +8,13 @@ frequencies:
   - minute
   - hour
   - day
+date_ranges:
+  minute:
+    start_date: '2024-10-02'
+    end_date: '2024-12-31'
+  hour:
+    start_date: '2022-12-31'
+    end_date: '2024-12-31'
+  day:
+    start_date: '2014-12-31'
+    end_date: '2024-12-31'
