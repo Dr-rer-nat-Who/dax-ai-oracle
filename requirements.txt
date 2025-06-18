@@ -13,4 +13,5 @@ scikit-learn
 lightgbm
 catboost
 pytorch-lightning
-pandas_market_calendars
+stable-baselines3
+gymnasium
