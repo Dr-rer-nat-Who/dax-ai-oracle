@@ -142,3 +142,4 @@ def test_fetch_and_store_handles_generic_error(tmp_path, monkeypatch):
     expect = flows.DATA_DIR / "raw" / "day" / "TEST.parquet"
     assert path == expect
     assert not path.exists()
+
