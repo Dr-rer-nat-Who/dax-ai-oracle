@@ -13,8 +13,8 @@ tabnet:
   gamma: [1, 2]
   mask_type: [entmax, sparsemax]
 prophet:
-  changepoint_prior_scale: [0.01, 0.5]
-  seasonality_prior_scale: [5, 15]
+  changepoint_prior_scale: [0.01]
+  seasonality_prior_scale: [5.0]
 n_linear:
   kernel_size: [3, 11]
   num_blocks: [1, 4]
