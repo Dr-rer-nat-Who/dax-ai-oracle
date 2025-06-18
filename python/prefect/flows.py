@@ -19,6 +19,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "python" / "data"
 FEATURES_DIR = ROOT_DIR / "python" / "features"
 
+# maximum window length for minute data downloads
+MAX_MINUTE_SPAN = pd.Timedelta(days=8)
+
 CHECKPOINT_BASE = Path.home() / "checkpoints"
 # ensure the result storage block exists for local checkpoints
 try:
@@ -62,29 +65,37 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
 
     start_ts = pd.Timestamp(start)
     end_ts = pd.Timestamp(end)
+    if freq == "minute":
+        if start_ts.tzinfo is None:
+            start_ts = start_ts.tz_localize("UTC")
+        if end_ts.tzinfo is None:
+            end_ts = end_ts.tz_localize("UTC")
 
     if freq == "minute" and path.exists():
         existing = pd.read_parquet(path)
         if not existing.empty:
-            existing.index = pd.to_datetime(existing.index).tz_localize(None)
+            existing.index = pd.to_datetime(existing.index)
+            if existing.index.tz is None:
+                existing.index = existing.index.tz_localize("UTC")
             start_ts = existing.index.max() + pd.Timedelta(minutes=1)
     else:
         existing = pd.DataFrame()
 
-    if freq == "minute" and (end_ts - start_ts) > pd.Timedelta(days=30):
+    if freq == "minute" and (end_ts - start_ts) > MAX_MINUTE_SPAN:
         chunks: list[pd.DataFrame] = []
         s = start_ts
         while s < end_ts:
-            e = min(s + pd.Timedelta(days=30), end_ts)
+            e = min(s + MAX_MINUTE_SPAN, end_ts)
             chunk = yf.download(
                 ticker,
                 start=s.to_pydatetime(),
                 end=e.to_pydatetime(),
                 interval=interval,
+                auto_adjust=False,
                 progress=False,
             )
             if not chunk.empty:
-                chunk.index = pd.to_datetime(chunk.index).tz_localize(None)
+                chunk.index = pd.to_datetime(chunk.index)
             chunks.append(chunk)
             s = e
         new = pd.concat(chunks) if chunks else pd.DataFrame()
@@ -95,17 +106,18 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             start=start_ts.to_pydatetime(),
             end=end_ts.to_pydatetime(),
             interval=interval,
+            auto_adjust=False,
             progress=False,
         )
         if not new.empty:
-            new.index = pd.to_datetime(new.index).tz_localize(None)
+            new.index = pd.to_datetime(new.index)
         df = pd.concat([existing, new]) if not existing.empty else new
 
     if not df.empty:
-        df.index = pd.to_datetime(df.index).tz_localize(None)
+        df.index = pd.to_datetime(df.index).tz_convert(None)
 
     if freq == "minute":
-        cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
+        cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=90)
         older = df[df.index < cutoff]
         recent = df[df.index >= cutoff]
         if not older.empty:

@@ -27,6 +27,7 @@ Prefect Flows -> Data Lake (Parquet + DVC) -> Feature Pipelines
 | Day       | 10 years      | `data/raw/1d/`     | kept                                         |
 
 Data comes from `yfinance` and is stored as Parquet with DVC for deduplicated storage.
+Minute data is downloaded in eight-day chunks to comply with API limits.
 
 ## 3. Feature Engineering
 

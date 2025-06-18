@@ -13,8 +13,8 @@ def test_ingest_sample_data(tmp_path, monkeypatch):
 
     # fake yfinance download
     class FakeYF:
-        def download(self, ticker, start, end, interval, progress):
-            index = pd.date_range("2020-01-01", periods=2, freq="D")
+        def download(self, ticker, start, end, interval, auto_adjust, progress):
+            index = pd.date_range("2020-01-01", periods=2, freq="D", tz="UTC")
             df = pd.DataFrame({"Open": [1, 2], "High": [1, 2], "Low": [1, 2], "Close": [1, 2]}, index=index)
             return df
 
@@ -72,9 +72,9 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_download(ticker, start, end, interval, progress):
+    def fake_download(ticker, start, end, interval, auto_adjust, progress):
         calls.append((start, end))
-        idx = pd.date_range(start, periods=1, freq="T")
+        idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
         return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
 
     monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
@@ -96,6 +96,8 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     assert path.exists()
     assert len(calls) >= 2
-    assert pd.Timestamp(calls[0][0]) == existing.index.max() + pd.Timedelta(minutes=1)
+    assert pd.Timestamp(calls[0][0]).tz_localize(None) == existing.index.max() + pd.Timedelta(minutes=1)
+    df = pd.read_parquet(path)
+    assert df.index.tz is None
     for s, e in calls:
-        assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=30)
+        assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
