@@ -51,7 +51,7 @@ def test_lightgbm_model_trains(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("python.prefect.train_and_evaluate.mlflow", DummyMlflow())
     from python.prefect import train_and_evaluate as te
 
-    te.DATA_DIR = tmp_path
+    te.FEATURES_DIR = tmp_path
     freq_dir = tmp_path / "day"
     freq_dir.mkdir()
     df = pd.DataFrame(
