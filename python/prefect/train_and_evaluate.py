@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import pickle
 from pathlib import Path
 from typing import Any, Dict, Tuple
@@ -19,6 +20,7 @@ import pandas as pd
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from .cleanup import remove_checkpoints, CHECKPOINT_BASE
+from sklearn.metrics import mean_squared_error
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -132,6 +134,12 @@ def evaluate(model: Dict[str, Any], X: np.ndarray, y: np.ndarray) -> float:
     return float(np.mean((y - preds) ** 2))
 
 
+def evaluate_model(predict_fn, model: Dict[str, Any], X: np.ndarray, y: np.ndarray) -> float:
+    """Generic MSE evaluation for arbitrary model."""
+    preds = predict_fn(model, X)
+    return float(mean_squared_error(y, preds))
+
+
 def save_model(name: str, model: Dict[str, Any]) -> Path:
     """Persist a trained model to ``MODELS_DIR`` and return its path."""
     path = MODELS_DIR / f"{name}.pkl"
@@ -147,6 +155,11 @@ def load_model(name: str) -> Dict[str, Any]:
         return pickle.load(f)
 
 
+def _model_funcs(name: str):
+    module = importlib.import_module(f"python.models.{name}")
+    return module.train, module.predict
+
+
 @task
 def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials: int) -> None:
     """Run an Optuna study for one model/label/frequency combination."""
@@ -159,13 +172,15 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
     exp_name = f"{model}_{freq}_{label}"
     mlflow.set_experiment(exp_name)
 
+    train_fn, predict_fn = _model_funcs(model)
+
     def objective(trial: optuna.Trial) -> float:
         params = {
             k: trial.suggest_categorical(k, v) if isinstance(v, list) else v
             for k, v in space.items()
         }
-        model_state = train_model(params, X_train, y_train)
-        metric = evaluate(model_state, X_val, y_val)
+        model_state = train_fn(X_train, y_train, params)
+        metric = evaluate_model(predict_fn, model_state, X_val, y_val)
         with mlflow.start_run():
             mlflow.log_params(params)
             mlflow.log_metric("mse", metric)
@@ -177,13 +192,9 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
 
     X_full = np.vstack([X_train, X_val])
     y_full = np.concatenate([y_train, y_val])
-    best_model = train_model(study.best_params, X_full, y_full)
-<<<<<<< codex/replace-placeholder-models-with-real-implementations
+    name = f"{model}_{freq}_{label}"
+    best_model = train_fn(X_full, y_full, study.best_params)
     save_model(name, best_model)
-=======
-    with open(MODELS_DIR / f"{model}_{freq}_{label}.pkl", "wb") as f:
-        pickle.dump(best_model, f)
->>>>>>> main
 
     exp = mlflow.get_experiment_by_name(exp_name)
     if exp is None:
@@ -206,5 +217,14 @@ def train_all(n_trials: int = 60) -> None:
     remove_checkpoints()
 
 
-__all__ = ["train_all", "run_study", "save_model", "load_model", "train_model", "predict", "evaluate"]
+__all__ = [
+    "train_all",
+    "run_study",
+    "save_model",
+    "load_model",
+    "train_model",
+    "predict",
+    "evaluate",
+    "evaluate_model",
+]
 

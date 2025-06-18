@@ -1,52 +1,41 @@
-linear_regression:
-  fit_intercept: [true, false]
-  normalize: [true, false]
-random_forest:
-  n_estimators: [100, 200, 300]
-  max_depth: [null, 10, 20]
-  min_samples_split: [2, 5, 10]
-xgboost:
-  n_estimators: [100, 200, 300]
-  learning_rate: [0.01, 0.1, 0.2]
-  max_depth: [3, 6, 9]
 lightgbm:
-  num_leaves: [31, 64, 128]
+  num_leaves: [31, 64]
   learning_rate: [0.01, 0.1]
-  n_estimators: [100, 200, 500]
+  n_estimators: [100, 200]
 catboost:
-  depth: [6, 8, 10]
-  learning_rate: [0.01, 0.05, 0.1]
-  iterations: [300, 500, 700]
-pytorch_lightning:
-  lr: [0.001, 0.0001]
-  batch_size: [32, 64, 128]
+  depth: [6, 8]
+  learning_rate: [0.01, 0.05]
+  iterations: [100, 200]
 tabnet:
-  lr: [0.01, 0.001]
-  epochs: [10, 20]
+  lr: [0.01]
+  epochs: [5]
 prophet:
-  changepoint_prior_scale: [0.001, 0.01]
-  seasonality_prior_scale: [1.0, 10.0]
-n_linear:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  changepoint_prior_scale: [0.01]
+  seasonality_prior_scale: [5.0]
 lstm:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  hidden: [16]
+  epochs: [3]
 tft:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  hidden: [32]
+  epochs: [3]
 autoformer:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  d_model: [32]
+  epochs: [3]
 informer:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  d_model: [32]
+  epochs: [3]
 patchtst:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  hidden: [32]
+  epochs: [3]
 timesnet:
-  lr: [0.001, 0.01]
-  epochs: [10, 20]
+  lr: [0.001]
+  d_model: [32]
+  epochs: [3]
 finrl_ppo:
-  lr: [0.0001, 0.001]
-  epochs: [10, 20]
+  lr: [0.0003]
+  n_steps: [128]
