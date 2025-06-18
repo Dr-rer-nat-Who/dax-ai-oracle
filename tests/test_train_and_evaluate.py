@@ -79,3 +79,63 @@ def test_train_model_predict_evaluate(monkeypatch):
     assert preds.shape == (20,)
     mse = te.evaluate(model, X, y)
     assert mse >= 0
+
+
+def test_range_sampling(monkeypatch):
+    from python.prefect import train_and_evaluate as te
+
+    monkeypatch.setattr(te, "mlflow", DummyMlflow())
+
+    captured: list[dict] = []
+
+    def dummy_train(X, y, params):
+        captured.append(params)
+        return {}
+
+    def dummy_predict(model, X):
+        return np.zeros(len(X))
+
+    monkeypatch.setattr(te, "_model_funcs", lambda name: (dummy_train, dummy_predict))
+
+    class DummyTrial:
+        def __init__(self):
+            self.params = {}
+
+        def suggest_int(self, name, low, high):
+            val = (low + high) // 2
+            self.params[name] = val
+            return val
+
+        def suggest_float(self, name, low, high):
+            val = (low + high) / 2.0
+            self.params[name] = val
+            return val
+
+        def suggest_categorical(self, name, choices):
+            val = choices[0]
+            self.params[name] = val
+            return val
+
+    class DummyStudy:
+        def __init__(self):
+            self.trial = DummyTrial()
+
+        def optimize(self, func, n_trials):
+            func(self.trial)
+
+        @property
+        def best_params(self):
+            return self.trial.params
+
+    monkeypatch.setattr(te.optuna, "create_study", lambda direction=None, pruner=None: DummyStudy())
+
+    monkeypatch.setattr(te, "_load_dataset", lambda freq: (np.zeros((2, 2)), np.zeros((2, 2)), {"B1": np.zeros(2)}, {"B1": np.zeros(2)}))
+
+    space = {"a": [1, 3], "b": [0.0, 1.0]}
+
+    te.run_study.fn("dummy", "B1", "day", space, n_trials=1)
+
+    assert captured
+    params = captured[0]
+    assert params["a"] == 2
+    assert abs(params["b"] - 0.5) < 1e-6
