@@ -65,3 +65,49 @@ Run the tests with:
 pytest -q
 ```
 
+## Local setup on macOS (Apple Silicon)
+
+The project has been tested on a MacBook M1. Follow these steps to set up the
+environment:
+
+1. Install the command line tools and Homebrew:
+
+   ```bash
+   xcode-select --install
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+2. Install required system packages via Homebrew. `ta-lib` is needed for the
+   feature pipeline and `dvc`/`mlflow` provide data and model tracking:
+
+   ```bash
+   brew install python@3.12 node ta-lib dvc mlflow
+   ```
+
+3. Create a Python virtual environment and activate it:
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+4. Install PyTorch with MPS support and the remaining Python requirements:
+
+   ```bash
+   pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/mps
+   pip install -r requirements.txt
+   ```
+
+5. Install the Node dependencies for the dashboard (uses Vite/React):
+
+   ```bash
+   npm install
+   ```
+
+After these steps the command below will ingest data, train the models,
+backtest and launch the Streamlit dashboard on `localhost:8501`:
+
+```bash
+python cli.py run-all --freq all --cleanup yes
+```
+
