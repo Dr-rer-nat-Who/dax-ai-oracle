@@ -109,12 +109,16 @@ def ingest(freq: str = "day", config: dict | None = None):
 
     results: dict[str, list[str]] = {}
     for f in freqs:
+        range_cfg = config.get("date_ranges", {}).get(f, {})
+        start = range_cfg.get("start_date", config.get("start_date"))
+        end = range_cfg.get("end_date", config.get("end_date"))
+
         paths = []
         for ticker in config["tickers"]:
             path = fetch_and_store(
                 ticker,
-                config["start_date"],
-                config["end_date"],
+                start,
+                end,
                 f,
             )
             paths.append(str(path))
