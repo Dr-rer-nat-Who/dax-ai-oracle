@@ -74,6 +74,18 @@ def _datetime_features(index: pd.DatetimeIndex) -> pd.DataFrame:
     feats = pd.DataFrame(index=index)
     feats["weekday"] = index.dayofweek
     feats["month_end"] = index.is_month_end.astype(int)
+    try:
+        import pandas_market_calendars as mcal  # type: ignore
+
+        cal = mcal.get_calendar("EUREX")
+        start = index.min().date()
+        end = index.max().date()
+        valid = cal.valid_days(start_date=start, end_date=end)
+        valid_dates = set(valid.tz_convert(None).normalize().date)
+        idx_dates = index.tz_localize(None).normalize().date
+        feats["holiday_flag"] = (~pd.Series(idx_dates, index=index).isin(valid_dates)).astype(int)
+    except Exception:  # pragma: no cover - calendar optional
+        feats["holiday_flag"] = 0
     return feats
 
 
