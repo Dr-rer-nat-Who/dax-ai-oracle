@@ -6,6 +6,7 @@ import pandas as pd
 import yaml
 import yfinance as yf
 from prefect import flow, task
+from prefect.filesystems import LocalFileSystem
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
