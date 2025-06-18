@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import numpy as np
+import pickle
+from pathlib import Path
+
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -16,6 +19,13 @@ class _TFT(pl.LightningModule):
         encoder_layer = torch.nn.TransformerEncoderLayer(hidden, nhead=2)
         self.transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=1)
         self.fc = torch.nn.Linear(hidden, 1)
+        self.attn_weights = None
+
+        def _capture_attn(module, inp, out):
+            if isinstance(out, tuple) and len(out) == 2:
+                self.attn_weights = out[1].detach().cpu()
+
+        self.transformer.layers[0].self_attn.register_forward_hook(_capture_attn)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # pragma: no cover - simple
         x = self.encoder(x)
@@ -51,6 +61,13 @@ def train(X: np.ndarray, y: np.ndarray, params: dict | None = None) -> dict:
     model = _TFT(X.shape[1], hidden, lr)
     trainer = pl.Trainer(max_epochs=epochs, logger=False, enable_model_summary=False)
     trainer.fit(model, loader)
+    attn = None
+    if model.attn_weights is not None:
+        attn = model.attn_weights.numpy()
+        out_path = Path(__file__).resolve().parent / "tft_attention.pkl"
+        with open(out_path, "wb") as f:
+            pickle.dump(attn, f)
+
     return {"model": model}
 
 
