@@ -20,3 +20,33 @@ catboost:
 pytorch_lightning:
   lr: [0.001, 0.0001]
   batch_size: [32, 64, 128]
+tabnet:
+  lr: [0.01, 0.001]
+  epochs: [10, 20]
+prophet:
+  changepoint_prior_scale: [0.001, 0.01]
+  seasonality_prior_scale: [1.0, 10.0]
+n_linear:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+lstm:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+tft:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+autoformer:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+informer:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+patchtst:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+timesnet:
+  lr: [0.001, 0.01]
+  epochs: [10, 20]
+finrl_ppo:
+  lr: [0.0001, 0.001]
+  epochs: [10, 20]

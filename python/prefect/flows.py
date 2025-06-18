@@ -7,6 +7,7 @@ import yaml
 import yfinance as yf
 from prefect import flow, task
 
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
 
@@ -14,6 +15,14 @@ CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "python" / "data"
 FEATURES_DIR = ROOT_DIR / "python" / "features"
+
+CHECKPOINT_BASE = Path.home() / "checkpoints"
+# ensure the result storage block exists for local checkpoints
+try:
+    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
+except Exception:
+    pass
+CHECKPOINT_STORAGE = "local-file-system/checkpoints"
 
 
 def load_config(name: str) -> dict:
@@ -44,6 +53,15 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
 
 
 @task(log_prints=True)
+def ensure_disk_space(threshold_gb: float = 5.0) -> None:
+    """Trigger cleanup when free disk space drops below ``threshold_gb``."""
+    free_gb = _disk_free_gb(ROOT_DIR)
+    if free_gb < threshold_gb:
+        print(f"Low disk space ({free_gb:.2f} GB); running cleanup")
+        cleanup_flow()
+
+
+@task(log_prints=True)
 def build_features(path: Path, exogenous: Path | None = None) -> Path:
     """Read OHLCV parquet, generate features and store them with DVC."""
     df = pd.read_parquet(path)
@@ -56,7 +74,7 @@ def build_features(path: Path, exogenous: Path | None = None) -> Path:
     subprocess.run(["dvc", "add", str(dest)], cwd=ROOT_DIR, check=True)
     return dest
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def ingest(freq: str = "day", config: dict | None = None):
     """Ingest OHLCV data as Parquet and track it with DVC."""
     if config is None:
@@ -81,44 +99,40 @@ def ingest(freq: str = "day", config: dict | None = None):
             )
             paths.append(str(path))
         results[f] = paths
+    remove_checkpoints()
     return results
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def train(config: dict | None = None):
     """Example training flow using optuna settings."""
     if config is None:
         config = load_config("optuna")
     print(f"Training models with search spaces: {list(config.keys())}")
+    remove_checkpoints()
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def backtest():
     """Dummy backtesting flow"""
     print("Running backtests...")
+    remove_checkpoints()
 
-@flow
-def cleanup(config: dict | None = None):
-    """Example cleanup flow that uses cleanup settings."""
-    if config is None:
-        config = load_config("cleanup")
-    print(
-        f"Cleaning up artifacts older than {config['retention_days']} days (min freq: {config['min_freq']})"
-    )
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def run_all(freq: str = "daily", do_cleanup: bool = False):
     """Run ingest, train and backtest flows sequentially, then optionally cleanup"""
     data_cfg = load_config("data")
     optuna_cfg = load_config("optuna")
-    cleanup_cfg = load_config("cleanup")
-
     ingest(freq, config=data_cfg)
+    ensure_disk_space()
     train(config=optuna_cfg)
+    ensure_disk_space()
     backtest()
     if do_cleanup:
-        cleanup(config=cleanup_cfg)
+        cleanup_flow()
+    remove_checkpoints()
 
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     """Build engineered features from Parquet price data."""
     if exogenous is None:
@@ -140,6 +154,7 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
             dest = build_features(src, exogenous=exo)
             paths.append(str(dest))
         results[f] = paths
+    remove_checkpoints()
     return results
 
 
