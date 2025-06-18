@@ -119,3 +119,12 @@ def cleanup() -> None:
     drop_unreferenced_parquet()
     remove_checkpoints()
 
+
+@flow
+def cleanup_flow() -> None:
+    """Wrapper flow calling :func:`cleanup`."""
+    cleanup()
+
+
+__all__ = ["cleanup_flow"]
+

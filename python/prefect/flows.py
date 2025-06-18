@@ -10,7 +10,7 @@ from prefect import flow, task
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
-from .cleanup import _resample_5min
+from .cleanup import _resample_5min, cleanup_flow
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
