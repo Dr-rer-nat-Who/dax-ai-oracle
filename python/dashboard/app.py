@@ -17,6 +17,11 @@ try:  # optional dependency for equity curves
 except Exception:  # pragma: no cover - optional dependency
     vbt = None
 
+try:  # optional, fallback plotting backend
+    import plotly.express as px
+except Exception:  # pragma: no cover - optional dependency
+    px = None
+
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "python" / "models"
 BEST_DIR = ROOT / "mlruns" / "best"
@@ -76,19 +81,36 @@ def show_leaderboard() -> None:
 
 
 def show_equity() -> None:
-    """Plot vectorbt equity curves."""
+    """Plot equity curves stored in ``mlruns/best``."""
     st.header("Equity Curves")
-    if vbt is None:  # pragma: no cover - optional dependency
-        st.info("vectorbt not installed")
+    if not BEST_DIR.exists():
+        st.info("No best runs directory found")
         return
-    port_files = MODELS_DIR.glob("equity_*.pkl")
-    for path in port_files:
+
+    csv_files = list(BEST_DIR.rglob("*_equity.csv"))
+    if not csv_files:
+        st.info("No equity curves found")
+        return
+
+    for path in csv_files:
         try:
-            pf = vbt.Portfolio.load(path)
-            fig = pf.total_return().vbt.plot()
-            st.plotly_chart(fig)
+            series = pd.read_csv(path, index_col=0, header=None).iloc[:, 0]
         except Exception as exc:  # pragma: no cover - corrupted file
-            st.warning(f"Failed to load {path.name}: {exc}")
+            st.warning(f"Failed to read {path.name}: {exc}")
+            continue
+
+        label = f"{path.parent.name} - {path.stem.replace('_equity', '')}"
+        st.subheader(label)
+
+        if vbt is not None:
+            fig = series.vbt.plot()
+        elif px is not None:  # pragma: no cover - optional dependency
+            fig = px.line(series, title=label)
+        else:  # pragma: no cover - minimal fallback
+            st.line_chart(series)
+            continue
+
+        st.plotly_chart(fig)
 
 
 def show_explain() -> None:
