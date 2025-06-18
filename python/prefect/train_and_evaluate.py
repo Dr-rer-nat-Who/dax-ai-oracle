@@ -33,6 +33,22 @@ MODELS_DIR = ROOT_DIR / "python" / "models"
 MODELS_DIR.mkdir(exist_ok=True)
 DATA_DIR = ROOT_DIR / "python" / "data"
 
+# Valid label/frequency pairs for each model family as defined in the project
+# blueprint. This restricts ``train_all`` to exactly the 27 intended
+# combinations.
+MODEL_LABEL_FREQ: Dict[str, Dict[str, list[str]]] = {
+    "lightgbm": {"B1": ["minute", "hour", "day"]},
+    "catboost": {"B1": ["minute", "hour", "day"]},
+    "tabnet": {"B1": ["hour", "day"]},
+    "prophet": {"R": ["day"]},
+    "n_linear": {"R": ["hour", "day"]},
+    "lstm": {"B1": ["minute", "hour", "day"], "R": ["minute", "hour", "day"]},
+    "tft": {"R": ["minute", "hour", "day"]},
+    "informer": {"R": ["hour", "day"]},
+    "patchtst": {"R": ["minute", "hour", "day"]},
+    "finrl_ppo": {"T3": ["hour", "day"]},
+}
+
 
 def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     """Load features from ``python/data/<freq>/`` and generate labels.
@@ -277,11 +293,10 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
 @flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def train_all(n_trials: int = 60) -> None:
     cfg = load_config("optuna")
-    freqs = ["minute", "hour", "day"]
-    labels = ["B1", "T3", "R"]
-    for freq in freqs:
-        for label in labels:
-            for model, space in cfg.items():
+    for model, label_map in MODEL_LABEL_FREQ.items():
+        space = cfg.get(model, {})
+        for label, freqs in label_map.items():
+            for freq in freqs:
                 run_study(model, label, freq, space or {}, n_trials)
     remove_checkpoints()
 
