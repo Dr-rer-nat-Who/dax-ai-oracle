@@ -90,13 +90,13 @@ environment:
    via `pip`:
 
    ```bash
-   brew install python@3.12 node ta-lib dvc
+   brew install python@3.11 node ta-lib dvc
    ```
 
 3. Create a Python virtual environment and activate it:
 
    ```bash
-   python3 -m venv .venv
+   python3.11 -m venv .venv
    source .venv/bin/activate
    ```
 
