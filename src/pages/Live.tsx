@@ -53,19 +53,25 @@ export default function Live() {
             {liveSignals.length === 0 ? (
               <span className="text-muted-foreground">Zurzeit keine Signale.</span>
             ) : (
-              liveSignals.map(({ ticker, signal, price, time }) => (
-                <div
-                  key={ticker + time}
-                  className={`px-5 py-2 rounded-lg bg-accent shadow hover:scale-105 transition-transform font-mono flex gap-3 items-center`}
-                >
-                  <span className="font-semibold">{ticker}</span>
-                  <span className={`text-sm px-2 py-0.5 rounded bg-${signal === "BUY" ? "green" : "red"}-200 text-${signal === "BUY" ? "green" : "red"}-700`}>
-                    {signal}
-                  </span>
-                  <span className="">{price.toFixed(2)} EUR</span>
-                  <span className="text-xs text-muted-foreground">{time}</span>
-                </div>
-              ))
+              liveSignals.map(({ ticker, signal, price, time }) => {
+                const colorClass = signal === "BUY"
+                  ? "bg-green-200 text-green-700"
+                  : "bg-red-200 text-red-700";
+
+                return (
+                  <div
+                    key={ticker + time}
+                    className={`px-5 py-2 rounded-lg bg-accent shadow hover:scale-105 transition-transform font-mono flex gap-3 items-center`}
+                  >
+                    <span className="font-semibold">{ticker}</span>
+                    <span className={`text-sm px-2 py-0.5 rounded ${colorClass}`}>
+                      {signal}
+                    </span>
+                    <span className="">{price.toFixed(2)} EUR</span>
+                    <span className="text-xs text-muted-foreground">{time}</span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
