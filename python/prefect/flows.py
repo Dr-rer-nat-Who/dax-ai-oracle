@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import yaml
 import yfinance as yf
+import time
 try:
     from yfinance.exceptions import YFPricesMissingError  # type: ignore
 except Exception:  # pragma: no cover - fallback for tests without yfinance
@@ -13,6 +14,7 @@ except Exception:  # pragma: no cover - fallback for tests without yfinance
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
+from prefect.task_runners import SequentialTaskRunner
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -49,6 +51,38 @@ def load_config(name: str) -> dict:
     """Load a YAML config by name from the configs directory."""
     with open(CONFIG_DIR / f"{name}.yaml", "r") as f:
         return yaml.safe_load(f)
+
+
+def _download_with_retry(
+    ticker: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    interval: str,
+    attempts: int = 3,
+    delay: float = 1.0,
+) -> pd.DataFrame | None:
+    """Call ``yf.download`` with a few retries on failure."""
+    for i in range(attempts):
+        try:
+            return yf.download(
+                ticker,
+                start=start.to_pydatetime(),
+                end=end.to_pydatetime(),
+                interval=interval,
+                auto_adjust=False,
+                progress=False,
+            )
+        except YFPricesMissingError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            if i < attempts - 1:
+                time.sleep(delay)
+            else:
+                print(
+                    f"Warning: failed to download {ticker} {start} - {end} after {attempts} attempts: {exc}"
+                )
+                return None
+
 
 
 @task(log_prints=True)
@@ -95,14 +129,10 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             s = start_ts
             while s < end_ts:
                 e = min(s + MAX_MINUTE_SPAN, end_ts)
-                chunk = yf.download(
-                    ticker,
-                    start=s.to_pydatetime(),
-                    end=e.to_pydatetime(),
-                    interval=interval,
-                    auto_adjust=False,
-                    progress=False,
-                )
+                chunk = _download_with_retry(ticker, s, e, interval)
+                if chunk is None:
+                    s = e
+                    continue
                 if not chunk.empty:
                     chunk.index = pd.to_datetime(chunk.index)
                 chunks.append(chunk)
@@ -110,14 +140,9 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             new = pd.concat(chunks) if chunks else pd.DataFrame()
             df = pd.concat([existing, new])
         else:
-            new = yf.download(
-                ticker,
-                start=start_ts.to_pydatetime(),
-                end=end_ts.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-            )
+            new = _download_with_retry(ticker, start_ts, end_ts, interval)
+            if new is None:
+                return path
             if not new.empty:
                 new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
@@ -130,6 +155,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
 
     if isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
+
 
 
 
@@ -169,7 +195,7 @@ def build_features(path: Path, exogenous: Path | None = None) -> Path:
     subprocess.run(["dvc", "add", str(dest)], cwd=ROOT_DIR, check=True)
     return dest
 
-@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE, task_runner=SequentialTaskRunner())
 def ingest(freq: str = "day", config: dict | None = None):
     """Ingest OHLCV data as Parquet and track it with DVC."""
     if config is None:
@@ -232,7 +258,7 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     _maybe_call(remove_checkpoints)
 
 
-@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE, task_runner=SequentialTaskRunner())
 def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     """Build engineered features from Parquet price data."""
     if exogenous is None:
