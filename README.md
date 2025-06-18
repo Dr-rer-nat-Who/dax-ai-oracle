@@ -70,6 +70,13 @@ pytest -q
 The project has been tested on a MacBook M1. Follow these steps to set up the
 environment:
 
+0. Clone this repository (DVC requires a Git repository):
+
+   ```bash
+   git clone https://github.com/yourname/dax-ai-oracle.git
+   cd dax-ai-oracle
+   ```
+
 1. Install the command line tools and Homebrew:
 
    ```bash
