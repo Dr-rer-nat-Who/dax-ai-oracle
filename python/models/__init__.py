@@ -1,6 +1,7 @@
-"""Collection of simple model implementations used in Optuna studies."""
+"""Collection of simple model implementations used in Optuna studies.
 
-from . import lightgbm, catboost, tabnet, prophet, n_linear, lstm, tft, autoformer, informer, patchtst, timesnet, finrl_ppo
+Submodules are loaded on demand to avoid heavy optional dependencies
+being imported during package initialization."""
 
 __all__ = [
     "lightgbm",
