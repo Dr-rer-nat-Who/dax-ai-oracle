@@ -32,6 +32,7 @@ except Exception:  # pragma: no cover - optional dependency
     bt = None
 
 from prefect import flow, task, get_run_logger
+from prefect.runtime.flow_run import FlowRunContext
 from .cleanup import dvc_gc_workspace
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -39,6 +40,14 @@ MODELS_DIR = ROOT_DIR / "python" / "models"
 MLRUNS_DIR = ROOT_DIR / "mlruns"
 BEST_DIR = MLRUNS_DIR / "best"
 DATA_DIR = ROOT_DIR / "python" / "data"
+
+
+def _maybe_call(task_func, *args, **kwargs):
+    if FlowRunContext.get():
+        return task_func(*args, **kwargs)
+    if hasattr(task_func, "fn"):
+        return task_func.fn(*args, **kwargs)
+    return task_func(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +232,7 @@ def backtest(
         for price_file in sorted(freq_dir.glob("*.parquet")):
             prices = pd.read_parquet(price_file)
             for model_path in model_paths:
-                metrics, equity = backtest_model.fn(model_path, prices)
+                metrics, equity = _maybe_call(backtest_model, model_path, prices)
                 metrics["model"] = model_path.stem
                 metrics["data"] = price_file.stem
                 metrics["frequency"] = freq_dir.name
@@ -240,7 +249,7 @@ def backtest(
         pd.DataFrame(results).to_csv(best_dir / "metrics.csv", index=False)
 
     # prune unused artifacts after backtesting
-    dvc_gc_workspace()
+    _maybe_call(dvc_gc_workspace)
     return results
 
 
