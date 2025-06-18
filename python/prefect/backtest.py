@@ -27,6 +27,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT_DIR / "python" / "models"
 MLRUNS_DIR = ROOT_DIR / "mlruns"
 BEST_DIR = MLRUNS_DIR / "best"
+DATA_DIR = ROOT_DIR / "python" / "data"
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +117,7 @@ else:  # pragma: no cover - backtrader optional
             self.i += 1
 
 
-def _backtrader_metrics(prices: pd.DataFrame, signals: np.ndarray) -> Tuple[float, float, float, float]:
+def _backtrader_metrics(prices: pd.DataFrame, signals: np.ndarray) -> Tuple[float, float, float, float, pd.Series]:
     """Run a simple backtrader simulation and compute performance stats."""
     if bt is None:  # pragma: no cover - optional dependency
         raise RuntimeError("backtrader not installed")
@@ -139,7 +140,7 @@ def _backtrader_metrics(prices: pd.DataFrame, signals: np.ndarray) -> Tuple[floa
     sortino = mean / downside if downside != 0 else 0.0
     cum = (1 + returns).cumprod()
     mdd = ((cum.cummax() - cum) / cum.cummax()).max()
-    return float(sharpe), float(sortino), float(mdd), float(ann_ret)
+    return float(sharpe), float(sortino), float(mdd), float(ann_ret), cum
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +162,7 @@ def backtest_model(path: Path, prices: pd.DataFrame) -> Dict[str, Any]:
     X = _make_features(prices, n_feats)
     preds = _predict(model, X)
     acc, bal_acc, f1, signals = _vectorbt_metrics(prices, preds)
-    sharpe, sortino, mdd, cagr = _backtrader_metrics(prices, signals)
+    sharpe, sortino, mdd, cagr, equity = _backtrader_metrics(prices, signals)
     final_score = 0.4 * bal_acc + 0.6 * min(sharpe / 3, 1)
     metrics = dict(
         accuracy=acc,
@@ -174,28 +175,41 @@ def backtest_model(path: Path, prices: pd.DataFrame) -> Dict[str, Any]:
         final_score=final_score,
     )
     logger.info("Metrics for %s: %s", path.name, metrics)
-    return metrics
+    return metrics, equity
 
 
 @flow
-def backtest(models_dir: Path | None = None, best_dir: Path | None = None) -> list[dict[str, Any]]:
-    """Run backtests for all models in ``models_dir``."""
+def backtest(
+    models_dir: Path | None = None,
+    best_dir: Path | None = None,
+    data_dir: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Run backtests for all models on all Parquet price files."""
     if models_dir is None:
         models_dir = MODELS_DIR
     if best_dir is None:
         best_dir = BEST_DIR
+    if data_dir is None:
+        data_dir = DATA_DIR
     best_dir.mkdir(parents=True, exist_ok=True)
-    prices = _make_price_data()
-    results = []
-    for path in models_dir.glob("*.pkl"):
-        metrics = backtest_model.fn(path, prices)
-        metrics["model"] = path.stem
-        results.append(metrics)
-        if metrics["final_score"] >= 0.6:
-            dest = best_dir / path.stem
-            dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, dest / path.name)
-            pd.DataFrame([metrics]).to_csv(dest / "metrics.csv", index=False)
+
+    results: list[dict[str, Any]] = []
+    price_files = sorted(data_dir.rglob("*.parquet"))
+    for price_file in price_files:
+        prices = pd.read_parquet(price_file)
+        for model_path in models_dir.glob("*.pkl"):
+            metrics, equity = backtest_model.fn(model_path, prices)
+            metrics["model"] = model_path.stem
+            metrics["data"] = price_file.stem
+            results.append(metrics)
+            if metrics["final_score"] >= 0.6:
+                dest = best_dir / model_path.stem
+                dest.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(model_path, dest / model_path.name)
+                pd.DataFrame([metrics]).to_csv(
+                    dest / f"{price_file.stem}_metrics.csv", index=False
+                )
+                equity.to_csv(dest / f"{price_file.stem}_equity.csv", header=False)
     if results:
         pd.DataFrame(results).to_csv(best_dir / "metrics.csv", index=False)
     return results
