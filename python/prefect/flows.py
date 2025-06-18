@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import yaml
 import yfinance as yf
+import time
 try:
     from yfinance.exceptions import YFPricesMissingError  # type: ignore
 except Exception:  # pragma: no cover - fallback for tests without yfinance
@@ -51,6 +52,38 @@ def load_config(name: str) -> dict:
         return yaml.safe_load(f)
 
 
+def _download_with_retry(
+    ticker: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    interval: str,
+    attempts: int = 3,
+    delay: float = 1.0,
+) -> pd.DataFrame | None:
+    """Call ``yf.download`` with a few retries on failure."""
+    for i in range(attempts):
+        try:
+            return yf.download(
+                ticker,
+                start=start.to_pydatetime(),
+                end=end.to_pydatetime(),
+                interval=interval,
+                auto_adjust=False,
+                progress=False,
+            )
+        except YFPricesMissingError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            if i < attempts - 1:
+                time.sleep(delay)
+            else:
+                print(
+                    f"Warning: failed to download {ticker} {start} - {end} after {attempts} attempts: {exc}"
+                )
+                return None
+
+
+
 @task(log_prints=True)
 def ensure_dvc_repo() -> None:
     """Initialize DVC in the repository if not already initialized."""
@@ -94,14 +127,10 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             s = start_ts
             while s < end_ts:
                 e = min(s + MAX_MINUTE_SPAN, end_ts)
-                chunk = yf.download(
-                    ticker,
-                    start=s.to_pydatetime(),
-                    end=e.to_pydatetime(),
-                    interval=interval,
-                    auto_adjust=False,
-                    progress=False,
-                )
+                chunk = _download_with_retry(ticker, s, e, interval)
+                if chunk is None:
+                    s = e
+                    continue
                 if not chunk.empty:
                     chunk.index = pd.to_datetime(chunk.index)
                 chunks.append(chunk)
@@ -109,14 +138,9 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             new = pd.concat(chunks) if chunks else pd.DataFrame()
             df = pd.concat([existing, new])
         else:
-            new = yf.download(
-                ticker,
-                start=start_ts.to_pydatetime(),
-                end=end_ts.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-            )
+            new = _download_with_retry(ticker, start_ts, end_ts, interval)
+            if new is None:
+                return path
             if not new.empty:
                 new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
