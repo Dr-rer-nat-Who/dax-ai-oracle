@@ -232,8 +232,23 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
             k: trial.suggest_categorical(k, v) if isinstance(v, list) else v
             for k, v in space.items()
         }
-        model_state = train_fn(X_train, y_train, params)
-        metric = evaluate_model(predict_fn, model_state, X_val, y_val)
+        if model == "lightgbm":
+            X_all = np.vstack([X_train, X_val])
+            y_all = np.concatenate([y_train, y_val])
+            from sklearn.model_selection import TimeSeriesSplit
+
+            cv = TimeSeriesSplit(n_splits=3)
+            metrics = []
+            for train_idx, val_idx in cv.split(X_all):
+                X_tr, X_va = X_all[train_idx], X_all[val_idx]
+                y_tr, y_va = y_all[train_idx], y_all[val_idx]
+                model_state = train_fn(X_tr, y_tr, params)
+                fold_metric = evaluate_model(predict_fn, model_state, X_va, y_va)
+                metrics.append(fold_metric)
+            metric = float(np.mean(metrics))
+        else:
+            model_state = train_fn(X_train, y_train, params)
+            metric = evaluate_model(predict_fn, model_state, X_val, y_val)
         with mlflow.start_run():
             mlflow.log_params(params)
             mlflow.log_metric("mse", metric)
