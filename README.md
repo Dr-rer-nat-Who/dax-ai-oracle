@@ -77,11 +77,12 @@ environment:
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-2. Install required system packages via Homebrew. `ta-lib` is needed for the
-   feature pipeline and `dvc`/`mlflow` provide data and model tracking:
+2. Install required system packages via Homebrew. `ta-lib` and `dvc` are needed
+   for feature generation and data versioning. `mlflow` will be installed later
+   via `pip`:
 
    ```bash
-   brew install python@3.12 node ta-lib dvc mlflow
+   brew install python@3.12 node ta-lib dvc
    ```
 
 3. Create a Python virtual environment and activate it:
