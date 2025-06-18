@@ -5,7 +5,7 @@ from __future__ import annotations
 import pickle
 import shutil
 from pathlib import Path
-from typing import Iterable, Tuple, Dict, Any
+from typing import Iterable, Tuple, Dict, Any, List
 
 import numpy as np
 import pandas as pd
@@ -60,6 +60,19 @@ def _make_features(prices: pd.DataFrame, n_feats: int) -> pd.DataFrame:
 def _predict(model: Dict[str, Any], X: pd.DataFrame) -> np.ndarray:
     weights = np.asarray(model.get("weights"))
     return X.iloc[:, : len(weights)].to_numpy().dot(weights)
+
+
+def _find_model_paths(mlruns_dir: Path) -> List[Path]:
+    """Return list of model artifact paths under an MLflow ``mlruns`` directory."""
+    if not mlruns_dir.exists():
+        return []
+    paths: List[Path] = []
+    for p in mlruns_dir.rglob("*.pkl"):
+        if "best" in p.parts:
+            continue
+        if p.name == "model.pkl" or p.suffix == ".pkl":
+            paths.append(p)
+    return paths
 
 
 def _vectorbt_metrics(prices: pd.DataFrame, preds: np.ndarray) -> Tuple[float, float, float, np.ndarray]:
@@ -180,13 +193,13 @@ def backtest_model(path: Path, prices: pd.DataFrame) -> Dict[str, Any]:
 
 @flow
 def backtest(
-    models_dir: Path | None = None,
+    mlruns_dir: Path | None = None,
     best_dir: Path | None = None,
     data_dir: Path | None = None,
 ) -> list[dict[str, Any]]:
-    """Run backtests for all models on all Parquet price files."""
-    if models_dir is None:
-        models_dir = MODELS_DIR
+    """Run backtests for model artifacts stored in ``mlruns``."""
+    if mlruns_dir is None:
+        mlruns_dir = MLRUNS_DIR
     if best_dir is None:
         best_dir = BEST_DIR
     if data_dir is None:
@@ -194,22 +207,24 @@ def backtest(
     best_dir.mkdir(parents=True, exist_ok=True)
 
     results: list[dict[str, Any]] = []
-    price_files = sorted(data_dir.rglob("*.parquet"))
-    for price_file in price_files:
-        prices = pd.read_parquet(price_file)
-        for model_path in models_dir.glob("*.pkl"):
-            metrics, equity = backtest_model.fn(model_path, prices)
-            metrics["model"] = model_path.stem
-            metrics["data"] = price_file.stem
-            results.append(metrics)
-            if metrics["final_score"] >= 0.6:
-                dest = best_dir / model_path.stem
-                dest.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(model_path, dest / model_path.name)
-                pd.DataFrame([metrics]).to_csv(
-                    dest / f"{price_file.stem}_metrics.csv", index=False
-                )
-                equity.to_csv(dest / f"{price_file.stem}_equity.csv", header=False)
+    model_paths = _find_model_paths(mlruns_dir)
+    for freq_dir in [d for d in data_dir.iterdir() if d.is_dir()]:
+        for price_file in sorted(freq_dir.glob("*.parquet")):
+            prices = pd.read_parquet(price_file)
+            for model_path in model_paths:
+                metrics, equity = backtest_model.fn(model_path, prices)
+                metrics["model"] = model_path.stem
+                metrics["data"] = price_file.stem
+                metrics["frequency"] = freq_dir.name
+                results.append(metrics)
+                if metrics["final_score"] >= 0.6:
+                    dest = best_dir / model_path.stem
+                    dest.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(model_path, dest / model_path.name)
+                    pd.DataFrame([metrics]).to_csv(
+                        dest / f"{price_file.stem}_metrics.csv", index=False
+                    )
+                    equity.to_csv(dest / f"{price_file.stem}_equity.csv", header=False)
     if results:
         pd.DataFrame(results).to_csv(best_dir / "metrics.csv", index=False)
     return results
