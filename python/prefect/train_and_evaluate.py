@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import numpy as np
 import optuna
@@ -28,22 +28,42 @@ MODELS_DIR.mkdir(exist_ok=True)
 DATA_DIR = ROOT_DIR / "python" / "data"
 
 
-def _load_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Load feature and label arrays with a train/val split."""
-    feats = DATA_DIR / "features.parquet"
-    labels = DATA_DIR / "labels.parquet"
-    if feats.exists() and labels.exists():
-        X_df = pd.read_parquet(feats)
-        y_df = pd.read_parquet(labels)
-        X = X_df.to_numpy()
-        y = y_df.iloc[:, 0].to_numpy()
+def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    """Load features from ``python/data/<freq>/`` and generate labels."""
+
+    dir_path = DATA_DIR / freq
+    paths = sorted(dir_path.glob("*.parquet"))
+
+    if paths:
+        df = pd.concat([pd.read_parquet(p) for p in paths])
     else:
         rng = np.random.default_rng(42)
-        X = rng.normal(size=(200, 10))
-        true_w = rng.normal(size=10)
-        y = X.dot(true_w) + rng.normal(scale=0.1, size=200)
+        df = pd.DataFrame(
+            rng.normal(size=(200, 11)),
+            columns=[f"f{i}" for i in range(10)] + ["Close"],
+        )
+
+    # ensure Close column exists for label generation
+    if "Close" not in df.columns:
+        df["Close"] = np.random.normal(size=len(df))
+
+    # features exclude typical OHLCV columns
+    feature_cols = [c for c in df.columns if c not in {"Open", "High", "Low", "Close", "Volume"}]
+    X = df[feature_cols].to_numpy()
+
+    from ..features import labels as lbl
+
+    labels = {
+        "B1": lbl.label_B1(df).to_numpy(),
+        "T3": lbl.label_T3(df).to_numpy(),
+        "R": lbl.label_R(df).to_numpy(),
+    }
+
     split = int(0.8 * len(X))
-    return X[:split], X[split:], y[:split], y[split:]
+    X_train, X_val = X[:split], X[split:]
+    y_train = {k: v[:split] for k, v in labels.items()}
+    y_val = {k: v[split:] for k, v in labels.items()}
+    return X_train, X_val, y_train, y_val
 
 # checkpoint storage setup
 try:
@@ -113,21 +133,24 @@ def evaluate(model: Dict[str, Any], X: np.ndarray, y: np.ndarray) -> float:
 
 
 @task
-def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
-    """Run an Optuna study for a single model family."""
+def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials: int) -> None:
+    """Run an Optuna study for one model/label/frequency combination."""
 
-    X_train, X_val, y_train, y_val = _load_dataset()
+    X_train, X_val, y_train_dict, y_val_dict = _load_dataset(freq)
+    y_train = y_train_dict[label]
+    y_val = y_val_dict[label]
 
     mlflow.set_tracking_uri(f"file://{ROOT_DIR / 'mlruns'}")
-    mlflow.set_experiment(name)
+    exp_name = f"{model}_{freq}_{label}"
+    mlflow.set_experiment(exp_name)
 
     def objective(trial: optuna.Trial) -> float:
         params = {
             k: trial.suggest_categorical(k, v) if isinstance(v, list) else v
             for k, v in space.items()
         }
-        model = train_model(params, X_train, y_train)
-        metric = evaluate(model, X_val, y_val)
+        model_state = train_model(params, X_train, y_train)
+        metric = evaluate(model_state, X_val, y_val)
         with mlflow.start_run():
             mlflow.log_params(params)
             mlflow.log_metric("mse", metric)
@@ -140,10 +163,10 @@ def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
     X_full = np.vstack([X_train, X_val])
     y_full = np.concatenate([y_train, y_val])
     best_model = train_model(study.best_params, X_full, y_full)
-    with open(MODELS_DIR / f"{name}.pkl", "wb") as f:
+    with open(MODELS_DIR / f"{model}_{freq}_{label}.pkl", "wb") as f:
         pickle.dump(best_model, f)
 
-    exp = mlflow.get_experiment_by_name(name)
+    exp = mlflow.get_experiment_by_name(exp_name)
     if exp is None:
         return
     runs = mlflow.search_runs([exp.experiment_id])
@@ -155,8 +178,12 @@ def run_study(name: str, space: Dict[str, Any], n_trials: int) -> None:
 @flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def train_all(n_trials: int = 60) -> None:
     cfg = load_config("optuna")
-    for name, space in cfg.items():
-        run_study(name, space or {}, n_trials)
+    freqs = ["minute", "hour", "day"]
+    labels = ["B1", "T3", "R"]
+    for freq in freqs:
+        for label in labels:
+            for model, space in cfg.items():
+                run_study(model, label, freq, space or {}, n_trials)
     remove_checkpoints()
 
 
