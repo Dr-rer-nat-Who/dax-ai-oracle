@@ -32,6 +32,7 @@ except Exception:  # pragma: no cover - optional dependency
     bt = None
 
 from prefect import flow, task, get_run_logger
+from .cleanup import dvc_gc_workspace
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT_DIR / "python" / "models"
@@ -237,6 +238,9 @@ def backtest(
                     equity.to_csv(dest / f"{price_file.stem}_equity.csv", header=False)
     if results:
         pd.DataFrame(results).to_csv(best_dir / "metrics.csv", index=False)
+
+    # prune unused artifacts after backtesting
+    dvc_gc_workspace()
     return results
 
 
