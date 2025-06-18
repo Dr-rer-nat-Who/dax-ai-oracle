@@ -132,6 +132,21 @@ def evaluate(model: Dict[str, Any], X: np.ndarray, y: np.ndarray) -> float:
     return float(np.mean((y - preds) ** 2))
 
 
+def save_model(name: str, model: Dict[str, Any]) -> Path:
+    """Persist a trained model to ``MODELS_DIR`` and return its path."""
+    path = MODELS_DIR / f"{name}.pkl"
+    with open(path, "wb") as f:
+        pickle.dump(model, f)
+    return path
+
+
+def load_model(name: str) -> Dict[str, Any]:
+    """Load a previously saved model from ``MODELS_DIR``."""
+    path = MODELS_DIR / f"{name}.pkl"
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
 @task
 def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials: int) -> None:
     """Run an Optuna study for one model/label/frequency combination."""
@@ -163,8 +178,12 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
     X_full = np.vstack([X_train, X_val])
     y_full = np.concatenate([y_train, y_val])
     best_model = train_model(study.best_params, X_full, y_full)
+<<<<<<< codex/replace-placeholder-models-with-real-implementations
+    save_model(name, best_model)
+=======
     with open(MODELS_DIR / f"{model}_{freq}_{label}.pkl", "wb") as f:
         pickle.dump(best_model, f)
+>>>>>>> main
 
     exp = mlflow.get_experiment_by_name(exp_name)
     if exp is None:
@@ -187,5 +206,5 @@ def train_all(n_trials: int = 60) -> None:
     remove_checkpoints()
 
 
-__all__ = ["train_all", "run_study"]
+__all__ = ["train_all", "run_study", "save_model", "load_model", "train_model", "predict", "evaluate"]
 

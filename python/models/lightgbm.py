@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import numpy as np
-from .common import gd_train, predict as _predict
+from lightgbm import LGBMRegressor
 
 
 def train(X: np.ndarray, y: np.ndarray, params: dict | None = None) -> dict:
+    """Train a LightGBM regressor."""
     if params is None:
         params = {}
-    lr = float(params.get("lr", 0.01))
-    epochs = int(params.get("epochs", 10))
-    weights = gd_train(X, y, lr, epochs)
-    return {"weights": weights}
+    model = LGBMRegressor(**params)
+    model.fit(X, y)
+    return {"model": model}
 
 
 def predict(model: dict, X: np.ndarray) -> np.ndarray:
-    return _predict(model["weights"], X)
+    """Predict using a trained LightGBM model."""
+    return model["model"].predict(X)

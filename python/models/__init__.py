@@ -1,4 +1,4 @@
-"""Model family stubs used in Optuna studies."""
+"""Collection of simple model implementations used in Optuna studies."""
 
 from . import lightgbm, catboost, tabnet, prophet, n_linear, lstm, tft, autoformer, informer, patchtst, timesnet, finrl_ppo
 
