@@ -5,7 +5,7 @@ from __future__ import annotations
 import pickle
 import shutil
 from pathlib import Path
-from typing import Iterable, Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List
 
 import numpy as np
 import pandas as pd
@@ -91,7 +91,7 @@ def _vectorbt_metrics(prices: pd.DataFrame, preds: np.ndarray) -> Tuple[float, f
     if vbt is None:  # pragma: no cover - optional dependency
         raise RuntimeError("vectorbt not installed")
     signals = np.sign(preds)
-    pf = vbt.Portfolio.from_signals(
+    vbt.Portfolio.from_signals(
         prices["Close"],
         entries=signals > 0,
         exits=signals < 0,
@@ -124,9 +124,11 @@ if bt is not None:
                 if sig == 0:
                     self.close()
                 elif sig > 0 and self.position.size < 0:
-                    self.close(); self.buy()
+                    self.close()
+                    self.buy()
                 elif sig < 0 and self.position.size > 0:
-                    self.close(); self.sell()
+                    self.close()
+                    self.sell()
             self.i += 1
 else:  # pragma: no cover - backtrader optional
     class _MLStrategy:
