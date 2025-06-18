@@ -11,7 +11,7 @@ from prefect.filesystems import LocalFileSystem
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
-from .cleanup import _resample_5min, cleanup_flow
+from .cleanup import _resample_5min, cleanup_flow, remove_checkpoints
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
