@@ -101,3 +101,44 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
     assert df.index.tz is None
     for s, e in calls:
         assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
+
+
+def test_fetch_and_store_handles_missing_error(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    dest = flows.DATA_DIR / "raw" / "day"
+    dest.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame({"Open": [1]}, index=pd.date_range("2020-01-01", periods=1, freq="D"))
+    p = dest / "TEST.parquet"
+    df.to_parquet(p)
+
+    def raise_missing(*a, **k):
+        raise flows.YFPricesMissingError("missing")
+
+    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(raise_missing)}))
+
+    path = flows.fetch_and_store.fn("TEST", "2020-01-01", "2020-01-02", "day")
+
+    assert path == p
+    assert path.exists()
+
+
+def test_fetch_and_store_handles_generic_error(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    def raise_error(*a, **k):
+        raise RuntimeError("fail")
+
+    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(raise_error)}))
+
+    path = flows.fetch_and_store.fn("TEST", "2020-01-01", "2020-01-02", "day")
+
+    expect = flows.DATA_DIR / "raw" / "day" / "TEST.parquet"
+    assert path == expect
+    assert not path.exists()

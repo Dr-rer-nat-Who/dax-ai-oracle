@@ -27,6 +27,7 @@ Prefect Flows -> Data Lake (Parquet + DVC) -> Feature Pipelines
 
 Data is pulled from `yfinance` and stored as Parquet with DVC deduplication.
 Minute downloads are requested in eight-day windows to stay within the API limits.
+Tickers that fail to download are skipped with a warning.
 
 ### Model families
 
