@@ -1,7 +1,4 @@
-"""Collection of simple model implementations used in Optuna studies.
 
-
-"""
 __all__ = [
     "lightgbm",
     "catboost",
