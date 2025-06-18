@@ -49,14 +49,41 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     path = dest_dir / f"{ticker}.parquet"
 
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+
     if freq == "minute" and path.exists():
         existing = pd.read_parquet(path)
         if not existing.empty:
-            start = (existing.index.max() + pd.Timedelta(minutes=1)).isoformat()
-        new = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
+            start_ts = existing.index.max() + pd.Timedelta(minutes=1)
+    else:
+        existing = pd.DataFrame()
+
+    if freq == "minute" and (end_ts - start_ts) > pd.Timedelta(days=30):
+        chunks: list[pd.DataFrame] = []
+        s = start_ts
+        while s < end_ts:
+            e = min(s + pd.Timedelta(days=30), end_ts)
+            chunk = yf.download(
+                ticker,
+                start=s.isoformat(),
+                end=e.isoformat(),
+                interval=interval,
+                progress=False,
+            )
+            chunks.append(chunk)
+            s = e
+        new = pd.concat(chunks) if chunks else pd.DataFrame()
         df = pd.concat([existing, new])
     else:
-        df = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
+        new = yf.download(
+            ticker,
+            start=start_ts.isoformat(),
+            end=end_ts.isoformat(),
+            interval=interval,
+            progress=False,
+        )
+        df = pd.concat([existing, new]) if not existing.empty else new
 
     if freq == "minute":
         cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
