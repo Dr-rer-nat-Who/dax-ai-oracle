@@ -1,5 +1,13 @@
-"""Collection of simple model implementations used in Optuna studies."""
+"""Collection of simple model implementations used in Optuna studies.
 
+<<<<<<< codex/update-run_study-to-use-medianpruner
+The individual model modules are imported lazily to avoid optional
+dependencies at package import time. ``importlib`` is used elsewhere to
+load the required module when a specific model is requested.
+"""
+
+=======
+>>>>>>> main
 __all__ = [
     "lightgbm",
     "catboost",
