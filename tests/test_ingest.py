@@ -64,3 +64,39 @@ def test_ingest_per_freq_ranges(tmp_path, monkeypatch):
         ("2021-01-01", "2021-01-10", "day"),
         ("2020-01-01", "2020-01-10", "hour"),
     ]
+
+def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    calls = []
+
+    def fake_download(ticker, start, end, interval, progress):
+        calls.append((start, end))
+        idx = pd.date_range(start, periods=1, freq="T")
+        return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
+
+    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
+
+    dest = flows.DATA_DIR / "raw" / "minute"
+    dest.mkdir(parents=True, exist_ok=True)
+    existing = pd.DataFrame(
+        {"Open": [1], "High": [1], "Low": [1], "Close": [1]},
+        index=pd.date_range("2020-01-01", periods=1, freq="T"),
+    )
+    existing.to_parquet(dest / "TEST.parquet")
+
+    path = flows.fetch_and_store.fn(
+        ticker="TEST",
+        start="2020-01-01",
+        end="2020-02-15",
+        freq="minute",
+    )
+
+    assert path.exists()
+    assert len(calls) >= 2
+    assert pd.Timestamp(calls[0][0]) == existing.index.max() + pd.Timedelta(minutes=1)
+    for s, e in calls:
+        assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=30)
