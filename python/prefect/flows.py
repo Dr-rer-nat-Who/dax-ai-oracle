@@ -13,6 +13,7 @@ except Exception:  # pragma: no cover - fallback for tests without yfinance
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
+from prefect.task_runners import SequentialTaskRunner
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -127,8 +128,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
         print(f"Warning: failed to download {ticker}: {exc}")
         return path
 
-    if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
-        df.index = pd.to_datetime(df.index).tz_convert(None)
+    df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
 
 
 
@@ -168,7 +168,7 @@ def build_features(path: Path, exogenous: Path | None = None) -> Path:
     subprocess.run(["dvc", "add", str(dest)], cwd=ROOT_DIR, check=True)
     return dest
 
-@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE, task_runner=SequentialTaskRunner())
 def ingest(freq: str = "day", config: dict | None = None):
     """Ingest OHLCV data as Parquet and track it with DVC."""
     if config is None:
@@ -231,7 +231,7 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     _maybe_call(remove_checkpoints)
 
 
-@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE, task_runner=SequentialTaskRunner())
 def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     """Build engineered features from Parquet price data."""
     if exogenous is None:
