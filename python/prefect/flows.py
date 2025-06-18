@@ -75,13 +75,14 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             start_ts = start_ts.tz_localize("UTC")
         if end_ts.tzinfo is None:
             end_ts = end_ts.tz_localize("UTC")
+        cutoff = pd.Timestamp.utcnow().tz_localize("UTC") - pd.Timedelta(days=30)
+        if start_ts < cutoff:
+            start_ts = cutoff
 
     if freq == "minute" and path.exists():
         existing = pd.read_parquet(path)
         if not existing.empty:
-            existing.index = (
-                pd.to_datetime(existing.index, utc=True).tz_localize(None)
-            )
+            existing.index = pd.to_datetime(existing.index, utc=True)
             start_ts = existing.index.max() + pd.Timedelta(minutes=1)
             if start_ts.tzinfo is None:
                 start_ts = start_ts.tz_localize("UTC")
@@ -127,8 +128,8 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
         print(f"Warning: failed to download {ticker}: {exc}")
         return path
 
-    if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
-        df.index = pd.to_datetime(df.index).tz_convert(None)
+    if isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
 
 
 
