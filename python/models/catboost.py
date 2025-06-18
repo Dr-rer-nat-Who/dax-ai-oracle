@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import numpy as np
-from .common import gd_train, predict as _predict
+from catboost import CatBoostRegressor
 
 
 def train(X: np.ndarray, y: np.ndarray, params: dict | None = None) -> dict:
+    """Train a CatBoost regressor."""
     if params is None:
         params = {}
-    lr = float(params.get("lr", 0.01))
-    epochs = int(params.get("epochs", 10))
-    weights = gd_train(X, y, lr, epochs)
-    return {"weights": weights}
+    model = CatBoostRegressor(**params, verbose=False)
+    model.fit(X, y)
+    return {"model": model}
 
 
 def predict(model: dict, X: np.ndarray) -> np.ndarray:
-    return _predict(model["weights"], X)
+    """Predict using a trained CatBoost model."""
+    return model["model"].predict(X)
