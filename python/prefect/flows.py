@@ -5,6 +5,11 @@ import sys
 import pandas as pd
 import yaml
 import yfinance as yf
+try:
+    from yfinance.exceptions import YFPricesMissingError  # type: ignore
+except Exception:  # pragma: no cover - fallback for tests without yfinance
+    class YFPricesMissingError(Exception):
+        pass
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
@@ -83,37 +88,44 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     else:
         existing = pd.DataFrame()
 
-    if freq == "minute" and (end_ts - start_ts) > MAX_MINUTE_SPAN:
-        chunks: list[pd.DataFrame] = []
-        s = start_ts
-        while s < end_ts:
-            e = min(s + MAX_MINUTE_SPAN, end_ts)
-            chunk = yf.download(
+    try:
+        if freq == "minute" and (end_ts - start_ts) > MAX_MINUTE_SPAN:
+            chunks: list[pd.DataFrame] = []
+            s = start_ts
+            while s < end_ts:
+                e = min(s + MAX_MINUTE_SPAN, end_ts)
+                chunk = yf.download(
+                    ticker,
+                    start=s.to_pydatetime(),
+                    end=e.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    progress=False,
+                )
+                if not chunk.empty:
+                    chunk.index = pd.to_datetime(chunk.index)
+                chunks.append(chunk)
+                s = e
+            new = pd.concat(chunks) if chunks else pd.DataFrame()
+            df = pd.concat([existing, new])
+        else:
+            new = yf.download(
                 ticker,
-                start=s.to_pydatetime(),
-                end=e.to_pydatetime(),
+                start=start_ts.to_pydatetime(),
+                end=end_ts.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
                 progress=False,
             )
-            if not chunk.empty:
-                chunk.index = pd.to_datetime(chunk.index)
-            chunks.append(chunk)
-            s = e
-        new = pd.concat(chunks) if chunks else pd.DataFrame()
-        df = pd.concat([existing, new])
-    else:
-        new = yf.download(
-            ticker,
-            start=start_ts.to_pydatetime(),
-            end=end_ts.to_pydatetime(),
-            interval=interval,
-            auto_adjust=False,
-            progress=False,
-        )
-        if not new.empty:
-            new.index = pd.to_datetime(new.index)
-        df = pd.concat([existing, new]) if not existing.empty else new
+            if not new.empty:
+                new.index = pd.to_datetime(new.index)
+            df = pd.concat([existing, new]) if not existing.empty else new
+    except YFPricesMissingError as exc:
+        print(f"Warning: {ticker} data missing: {exc}")
+        return path
+    except Exception as exc:  # noqa: BLE001
+        print(f"Warning: failed to download {ticker}: {exc}")
+        return path
 
     if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
         df.index = pd.to_datetime(df.index).tz_convert(None)
