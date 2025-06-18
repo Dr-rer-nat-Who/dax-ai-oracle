@@ -27,7 +27,12 @@ def load_config(name: str) -> dict:
 @task(log_prints=True)
 def dvc_gc_workspace() -> None:
     """Run ``dvc gc -w`` to drop unused data objects from the workspace."""
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:  # outside flow context
+        import logging
+
+        logger = logging.getLogger(__name__)
     cmd = ["dvc", "gc", "-w"]
     logger.info("Running %s", " ".join(cmd))
     try:

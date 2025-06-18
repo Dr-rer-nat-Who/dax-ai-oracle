@@ -7,6 +7,7 @@ import yaml
 import yfinance as yf
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
+from prefect.runtime.flow_run import FlowRunContext
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -25,6 +26,15 @@ try:
 except Exception:
     pass
 CHECKPOINT_STORAGE = "local-file-system/checkpoints"
+
+
+def _maybe_call(task_func, *args, **kwargs):
+    """Call a Prefect task inside a flow or fall back to the raw function."""
+    if FlowRunContext.get():
+        return task_func(*args, **kwargs)
+    if hasattr(task_func, "fn"):
+        return task_func.fn(*args, **kwargs)
+    return task_func(*args, **kwargs)
 
 
 def load_config(name: str) -> dict:
@@ -133,7 +143,7 @@ def ingest(freq: str = "day", config: dict | None = None):
     else:
         freqs = [freq]
 
-    ensure_dvc_repo()
+    _maybe_call(ensure_dvc_repo)
 
     results: dict[str, list[str]] = {}
     for f in freqs:
@@ -143,7 +153,8 @@ def ingest(freq: str = "day", config: dict | None = None):
 
         paths = []
         for ticker in config["tickers"]:
-            path = fetch_and_store(
+            path = _maybe_call(
+                fetch_and_store,
                 ticker,
                 start,
                 end,
@@ -151,7 +162,7 @@ def ingest(freq: str = "day", config: dict | None = None):
             )
             paths.append(str(path))
         results[f] = paths
-    remove_checkpoints()
+    _maybe_call(remove_checkpoints)
     return results
 
 @flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
@@ -175,13 +186,13 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     data_cfg = load_config("data")
     optuna_cfg = load_config("optuna")
     ingest(freq, config=data_cfg)
-    ensure_disk_space()
+    _maybe_call(ensure_disk_space)
     train(config=optuna_cfg)
-    ensure_disk_space()
+    _maybe_call(ensure_disk_space)
     backtest()
     if do_cleanup:
         cleanup_flow()
-    remove_checkpoints()
+    _maybe_call(remove_checkpoints)
 
 
 @flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
@@ -195,7 +206,7 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     else:
         freqs = [freq]
 
-    ensure_dvc_repo()
+    _maybe_call(ensure_dvc_repo)
 
     results: dict[str, list[str]] = {}
     for f in freqs:
@@ -203,10 +214,10 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
         for src in (DATA_DIR / "raw" / f).glob("*.parquet"):
             exo_path = exogenous.get(src.stem)
             exo = Path(exo_path) if exo_path else None
-            dest = build_features(src, exogenous=exo)
+            dest = _maybe_call(build_features, src, exogenous=exo)
             paths.append(str(dest))
         results[f] = paths
-    remove_checkpoints()
+    _maybe_call(remove_checkpoints)
     return results
 
 
