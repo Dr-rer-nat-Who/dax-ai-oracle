@@ -244,10 +244,24 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
     train_fn, predict_fn = _model_funcs(model)
 
     def objective(trial: optuna.Trial) -> float:
-        params = {
-            k: trial.suggest_categorical(k, v) if isinstance(v, list) else v
-            for k, v in space.items()
-        }
+        params: Dict[str, Any] = {}
+        for k, v in space.items():
+            if isinstance(v, list):
+                if len(v) == 1:
+                    params[k] = v[0]
+                elif (
+                    len(v) == 2
+                    and all(isinstance(i, (int, float)) for i in v)
+                ):
+                    low, high = v
+                    if isinstance(low, int) and isinstance(high, int):
+                        params[k] = trial.suggest_int(k, int(low), int(high))
+                    else:
+                        params[k] = trial.suggest_float(k, float(low), float(high))
+                else:
+                    params[k] = trial.suggest_categorical(k, v)
+            else:
+                params[k] = v
         if model == "lightgbm":
             X_all = np.vstack([X_train, X_val])
             y_all = np.concatenate([y_train, y_val])

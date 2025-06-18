@@ -85,6 +85,8 @@ cli.py
 configs/
     data.yaml
     optuna.yaml
+        # lists with two numbers denote a [min, max] range
+        # longer lists or strings are sampled categorically
     cleanup.yaml
 data/
 features/
