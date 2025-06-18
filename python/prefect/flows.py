@@ -10,6 +10,7 @@ from prefect import flow, task
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
+from .cleanup import _resample_5min
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -43,10 +44,29 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     """Fetch OHLCV data from yfinance and store it as Parquet with DVC."""
     interval_map = {"minute": "1m", "hour": "1h", "day": "1d"}
     interval = interval_map[freq]
-    df = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
-    dest_dir = DATA_DIR / freq
+
+    dest_dir = DATA_DIR / "raw" / freq
     dest_dir.mkdir(parents=True, exist_ok=True)
     path = dest_dir / f"{ticker}.parquet"
+
+    if freq == "minute" and path.exists():
+        existing = pd.read_parquet(path)
+        if not existing.empty:
+            start = (existing.index.max() + pd.Timedelta(minutes=1)).isoformat()
+        new = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
+        df = pd.concat([existing, new])
+    else:
+        df = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
+
+    if freq == "minute":
+        cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
+        older = df[df.index < cutoff]
+        recent = df[df.index >= cutoff]
+        if not older.empty:
+            older = _resample_5min(older)
+        df = pd.concat([older, recent]).sort_index()
+
+    df = df[~df.index.duplicated(keep="last")]
     df.to_parquet(path)
     subprocess.run(["dvc", "add", str(path)], cwd=ROOT_DIR, check=True)
     return path
@@ -139,7 +159,7 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
         exogenous = {}
 
     if freq == "all":
-        freqs = [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
+        freqs = [d.name for d in (DATA_DIR / "raw").iterdir() if d.is_dir()]
     else:
         freqs = [freq]
 
@@ -148,7 +168,7 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     results: dict[str, list[str]] = {}
     for f in freqs:
         paths = []
-        for src in (DATA_DIR / f).glob("*.parquet"):
+        for src in (DATA_DIR / "raw" / f).glob("*.parquet"):
             exo_path = exogenous.get(src.stem)
             exo = Path(exo_path) if exo_path else None
             dest = build_features(src, exogenous=exo)

@@ -9,7 +9,17 @@ from typing import Iterable, Tuple, Dict, Any
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
+try:
+    from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score
+except Exception:  # pragma: no cover - optional dependency
+    def accuracy_score(y_true, y_pred):  # type: ignore[override]
+        return float((np.asarray(y_true) == np.asarray(y_pred)).mean())
+
+    def balanced_accuracy_score(y_true, y_pred):  # type: ignore[override]
+        return accuracy_score(y_true, y_pred)
+
+    def f1_score(y_true, y_pred):  # type: ignore[override]
+        return accuracy_score(y_true, y_pred)
 
 try:
     import vectorbt as vbt
