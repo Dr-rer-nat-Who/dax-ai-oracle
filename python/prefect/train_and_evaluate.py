@@ -9,7 +9,10 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 import optuna
-import mlflow
+try:
+    import mlflow
+except Exception:  # pragma: no cover - optional dependency
+    mlflow = None  # type: ignore[assignment]
 
 try:  # optional torch usage
     import torch
