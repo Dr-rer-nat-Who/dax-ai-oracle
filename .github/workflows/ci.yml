@@ -18,5 +18,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install pandas numpy scikit-learn optuna mlflow prefect
+      - run: pip install pandas numpy scikit-learn optuna mlflow prefect stable-baselines3 gymnasium
       - run: pytest -q

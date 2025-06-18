@@ -13,3 +13,5 @@ scikit-learn
 lightgbm
 catboost
 pytorch-lightning
+stable-baselines3
+gymnasium
