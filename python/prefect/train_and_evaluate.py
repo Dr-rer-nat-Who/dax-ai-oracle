@@ -20,6 +20,7 @@ except Exception:  # pragma: no cover - torch not installed
     torch = None
 
 import pandas as pd
+import pyarrow.dataset as ds
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from .cleanup import remove_checkpoints, CHECKPOINT_BASE
@@ -34,13 +35,70 @@ DATA_DIR = ROOT_DIR / "python" / "data"
 
 
 def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-    """Load features from ``python/data/<freq>/`` and generate labels."""
+    """Load features from ``python/data/<freq>/`` and generate labels.
+
+    The data is read in chunks using ``pyarrow.dataset`` so that even very large
+    parquet collections can be processed without loading everything into memory
+    at once.
+    """
 
     dir_path = DATA_DIR / freq
     paths = sorted(dir_path.glob("*.parquet"))
 
+    from ..features import labels as lbl
+
     if paths:
-        df = pd.concat([pd.read_parquet(p) for p in paths])
+        dataset = ds.dataset(paths)
+        total_rows = dataset.count_rows()
+        split_idx = int(0.8 * total_rows)
+
+        X_train_parts: list[np.ndarray] = []
+        X_val_parts: list[np.ndarray] = []
+        y_train_parts: Dict[str, list[np.ndarray]] = {"B1": [], "T3": [], "R": []}
+        y_val_parts: Dict[str, list[np.ndarray]] = {"B1": [], "T3": [], "R": []}
+
+        current = 0
+        for batch in dataset.to_batches(batch_size=1024):
+            df_batch = batch.to_pandas()
+            if "Close" not in df_batch.columns:
+                df_batch["Close"] = np.random.normal(size=len(df_batch))
+
+            feature_cols = [
+                c
+                for c in df_batch.columns
+                if c not in {"Open", "High", "Low", "Close", "Volume"}
+            ]
+            X_batch = df_batch[feature_cols].to_numpy()
+
+            labels_batch = {
+                "B1": lbl.label_B1(df_batch).to_numpy(),
+                "T3": lbl.label_T3(df_batch).to_numpy(),
+                "R": lbl.label_R(df_batch).to_numpy(),
+            }
+
+            end = current + len(df_batch)
+            if end <= split_idx:
+                X_train_parts.append(X_batch)
+                for k in y_train_parts:
+                    y_train_parts[k].append(labels_batch[k])
+            elif current >= split_idx:
+                X_val_parts.append(X_batch)
+                for k in y_val_parts:
+                    y_val_parts[k].append(labels_batch[k])
+            else:
+                cut = split_idx - current
+                X_train_parts.append(X_batch[:cut])
+                X_val_parts.append(X_batch[cut:])
+                for k in y_train_parts:
+                    y_train_parts[k].append(labels_batch[k][:cut])
+                    y_val_parts[k].append(labels_batch[k][cut:])
+            current = end
+
+        X_train = np.vstack(X_train_parts) if X_train_parts else np.empty((0, 0))
+        X_val = np.vstack(X_val_parts) if X_val_parts else np.empty((0, 0))
+        y_train = {k: np.concatenate(v) if v else np.empty(0) for k, v in y_train_parts.items()}
+        y_val = {k: np.concatenate(v) if v else np.empty(0) for k, v in y_val_parts.items()}
+        return X_train, X_val, y_train, y_val
     else:
         rng = np.random.default_rng(42)
         df = pd.DataFrame(
@@ -48,27 +106,19 @@ def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarr
             columns=[f"f{i}" for i in range(10)] + ["Close"],
         )
 
-    # ensure Close column exists for label generation
-    if "Close" not in df.columns:
-        df["Close"] = np.random.normal(size=len(df))
+        feature_cols = [c for c in df.columns if c not in {"Open", "High", "Low", "Close", "Volume"}]
+        X = df[feature_cols].to_numpy()
+        labels = {
+            "B1": lbl.label_B1(df).to_numpy(),
+            "T3": lbl.label_T3(df).to_numpy(),
+            "R": lbl.label_R(df).to_numpy(),
+        }
 
-    # features exclude typical OHLCV columns
-    feature_cols = [c for c in df.columns if c not in {"Open", "High", "Low", "Close", "Volume"}]
-    X = df[feature_cols].to_numpy()
-
-    from ..features import labels as lbl
-
-    labels = {
-        "B1": lbl.label_B1(df).to_numpy(),
-        "T3": lbl.label_T3(df).to_numpy(),
-        "R": lbl.label_R(df).to_numpy(),
-    }
-
-    split = int(0.8 * len(X))
-    X_train, X_val = X[:split], X[split:]
-    y_train = {k: v[:split] for k, v in labels.items()}
-    y_val = {k: v[split:] for k, v in labels.items()}
-    return X_train, X_val, y_train, y_val
+        split = int(0.8 * len(X))
+        X_train, X_val = X[:split], X[split:]
+        y_train = {k: v[:split] for k, v in labels.items()}
+        y_val = {k: v[split:] for k, v in labels.items()}
+        return X_train, X_val, y_train, y_val
 
 # checkpoint storage setup
 try:
@@ -189,7 +239,8 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
             mlflow.log_metric("mse", metric)
         return metric
 
-    pruner = optuna.pruners.MedianPruner()
+    # prune trials after three evaluations without improvement
+    pruner = optuna.pruners.MedianPruner(n_warmup_steps=3)
     study = optuna.create_study(direction="minimize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials)
 
