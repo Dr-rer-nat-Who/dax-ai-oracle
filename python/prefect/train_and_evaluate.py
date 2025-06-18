@@ -239,7 +239,8 @@ def run_study(model: str, label: str, freq: str, space: Dict[str, Any], n_trials
             mlflow.log_metric("mse", metric)
         return metric
 
-    pruner = optuna.pruners.MedianPruner()
+    # prune trials after three evaluations without improvement
+    pruner = optuna.pruners.MedianPruner(n_warmup_steps=3)
     study = optuna.create_study(direction="minimize", pruner=pruner)
     study.optimize(objective, n_trials=n_trials)
 

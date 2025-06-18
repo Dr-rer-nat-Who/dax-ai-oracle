@@ -1,8 +1,7 @@
 """Collection of simple model implementations used in Optuna studies.
 
-Submodules are loaded on demand to avoid heavy optional dependencies
-being imported during package initialization."""
 
+"""
 __all__ = [
     "lightgbm",
     "catboost",
@@ -17,3 +16,10 @@ __all__ = [
     "timesnet",
     "finrl_ppo",
 ]
+
+
+def __getattr__(name):
+    if name in __all__:
+        import importlib
+        return importlib.import_module(f".{name}", __name__)
+    raise AttributeError(f"module {__name__} has no attribute {name}")

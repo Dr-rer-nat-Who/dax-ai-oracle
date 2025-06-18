@@ -54,7 +54,7 @@ LSTM       | TFT        | Autoformer  | Informer   | PatchTST
 TimesNet   | FinRL-PPO
 ```
 
-All combinations across 3 frequencies and 3 label types yield 27 model variants. Each Optuna study runs about 60 trials with early stopping via a median pruner.
+All combinations across 3 frequencies and 3 label types yield 27 model variants. Each Optuna study runs about 60 trials with early stopping via a median pruner (three warmup steps).
 
 ## 6. Training Pipeline
 
