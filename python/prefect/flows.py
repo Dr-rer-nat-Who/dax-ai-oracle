@@ -66,6 +66,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     if freq == "minute" and path.exists():
         existing = pd.read_parquet(path)
         if not existing.empty:
+            existing.index = pd.to_datetime(existing.index).tz_localize(None)
             start_ts = existing.index.max() + pd.Timedelta(minutes=1)
     else:
         existing = pd.DataFrame()
@@ -77,11 +78,13 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             e = min(s + pd.Timedelta(days=30), end_ts)
             chunk = yf.download(
                 ticker,
-                start=s.isoformat(),
-                end=e.isoformat(),
+                start=s.to_pydatetime(),
+                end=e.to_pydatetime(),
                 interval=interval,
                 progress=False,
             )
+            if not chunk.empty:
+                chunk.index = pd.to_datetime(chunk.index).tz_localize(None)
             chunks.append(chunk)
             s = e
         new = pd.concat(chunks) if chunks else pd.DataFrame()
@@ -89,12 +92,17 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     else:
         new = yf.download(
             ticker,
-            start=start_ts.isoformat(),
-            end=end_ts.isoformat(),
+            start=start_ts.to_pydatetime(),
+            end=end_ts.to_pydatetime(),
             interval=interval,
             progress=False,
         )
+        if not new.empty:
+            new.index = pd.to_datetime(new.index).tz_localize(None)
         df = pd.concat([existing, new]) if not existing.empty else new
+
+    if not df.empty:
+        df.index = pd.to_datetime(df.index).tz_localize(None)
 
     if freq == "minute":
         cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
