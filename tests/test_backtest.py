@@ -53,3 +53,40 @@ def test_make_features_and_predict():
     preds = bt._predict(model, feats)
     assert isinstance(preds, np.ndarray)
     assert len(preds) == 5
+
+
+def test_backtest_triggers_gc(tmp_path: Path, monkeypatch) -> None:
+    bt.MLRUNS_DIR = tmp_path / "mlruns"
+    bt.BEST_DIR = bt.MLRUNS_DIR / "best"
+    bt.DATA_DIR = tmp_path / "data"
+    model_artifact = bt.MLRUNS_DIR / "0" / "run" / "artifacts"
+    model_artifact.mkdir(parents=True)
+    freq_dir = bt.DATA_DIR / "day"
+    freq_dir.mkdir(parents=True)
+
+    df = pd.DataFrame(
+        {"Open": [1], "High": [1], "Low": [1], "Close": [1]},
+        index=pd.date_range("2020-01-01", periods=1, freq="D"),
+    )
+    df.to_parquet(freq_dir / "sample.parquet")
+
+    with open(model_artifact / "model.pkl", "wb") as f:
+        pickle.dump({"weights": [1.0]}, f)
+
+    monkeypatch.setattr(bt, "_vectorbt_metrics", lambda p, pr: (0.5, 0.5, 0.5, pr))
+    monkeypatch.setattr(
+        bt,
+        "_backtrader_metrics",
+        lambda p, s: (0.1, 0.1, 0.1, 0.1, pd.Series([1], index=p.index)),
+    )
+
+    called = {"gc": False}
+
+    def fake_gc():
+        called["gc"] = True
+
+    monkeypatch.setattr(bt, "dvc_gc_workspace", fake_gc)
+
+    bt.backtest.fn(mlruns_dir=bt.MLRUNS_DIR, best_dir=bt.BEST_DIR, data_dir=bt.DATA_DIR)
+
+    assert called["gc"], "dvc gc not triggered"
