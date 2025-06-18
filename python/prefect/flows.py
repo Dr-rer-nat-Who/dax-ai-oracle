@@ -6,7 +6,7 @@ import pandas as pd
 import yaml
 import yfinance as yf
 from prefect import flow, task
-from .cleanup import cleanup as cleanup_flow, _disk_free_gb
+
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
@@ -15,6 +15,14 @@ CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT_DIR / "python" / "data"
 FEATURES_DIR = ROOT_DIR / "python" / "features"
+
+CHECKPOINT_BASE = Path.home() / "checkpoints"
+# ensure the result storage block exists for local checkpoints
+try:
+    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
+except Exception:
+    pass
+CHECKPOINT_STORAGE = "local-file-system/checkpoints"
 
 
 def load_config(name: str) -> dict:
@@ -66,7 +74,7 @@ def build_features(path: Path, exogenous: Path | None = None) -> Path:
     subprocess.run(["dvc", "add", str(dest)], cwd=ROOT_DIR, check=True)
     return dest
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def ingest(freq: str = "day", config: dict | None = None):
     """Ingest OHLCV data as Parquet and track it with DVC."""
     if config is None:
@@ -91,22 +99,25 @@ def ingest(freq: str = "day", config: dict | None = None):
             )
             paths.append(str(path))
         results[f] = paths
+    remove_checkpoints()
     return results
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def train(config: dict | None = None):
     """Example training flow using optuna settings."""
     if config is None:
         config = load_config("optuna")
     print(f"Training models with search spaces: {list(config.keys())}")
+    remove_checkpoints()
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def backtest():
     """Dummy backtesting flow"""
     print("Running backtests...")
+    remove_checkpoints()
 
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def run_all(freq: str = "daily", do_cleanup: bool = False):
     """Run ingest, train and backtest flows sequentially, then optionally cleanup"""
     data_cfg = load_config("data")
@@ -118,9 +129,10 @@ def run_all(freq: str = "daily", do_cleanup: bool = False):
     backtest()
     if do_cleanup:
         cleanup_flow()
+    remove_checkpoints()
 
 
-@flow
+@flow(persist_result=True, result_storage=CHECKPOINT_STORAGE)
 def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
     """Build engineered features from Parquet price data."""
     if exogenous is None:
@@ -142,6 +154,7 @@ def feature_build(freq: str = "day", exogenous: dict[str, str] | None = None):
             dest = build_features(src, exogenous=exo)
             paths.append(str(dest))
         results[f] = paths
+    remove_checkpoints()
     return results
 
 

@@ -1,7 +1,12 @@
 import numpy as np
 import pandas as pd
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from python.features import pipelines as p
+from python.features import labels as lbl
 
 
 def test_window_embeddings_basic():
@@ -37,4 +42,15 @@ def test_compute_features_with_exogenous(monkeypatch):
     assert "wick_upper" in feats.columns
     assert "dax_future_spread" in feats.columns
     assert len(feats) == len(df)
+
+
+
+def test_label_generation_functions():
+    df = pd.DataFrame({"Close": [1.0, 1.02, 0.99, 1.01]})
+    b1 = lbl.label_B1(df)
+    t3 = lbl.label_T3(df, thresh=0.01)
+    r = lbl.label_R(df)
+    assert len(b1) == len(df)
+    assert set(t3.unique()) <= {1, 0, -1}
+    assert np.isfinite(r).all()
 
