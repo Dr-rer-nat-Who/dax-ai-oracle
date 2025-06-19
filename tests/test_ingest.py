@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 from python.prefect import flows
 
 
@@ -154,10 +155,8 @@ def test_fetch_and_store_handles_missing_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(raise_missing)}))
 
-    path = flows.fetch_and_store.fn("TEST", "2020-01-01", "2020-01-02", "day")
-
-    assert path == p
-    assert path.exists()
+    with pytest.raises(flows.YFPricesMissingError):
+        flows.fetch_and_store.fn("TEST", "2020-01-01", "2020-01-02", "day")
 
 
 def test_fetch_and_store_handles_generic_error(tmp_path, monkeypatch):
@@ -176,4 +175,19 @@ def test_fetch_and_store_handles_generic_error(tmp_path, monkeypatch):
     expect = flows.DATA_DIR / "raw" / "day" / "TEST.parquet"
     assert path == expect
     assert not path.exists()
+
+
+def test_fetch_and_store_empty_df_raises(tmp_path, monkeypatch):
+    flows.DATA_DIR = tmp_path / "data"
+    flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
+
+    def empty_download(*a, **k):
+        return pd.DataFrame()
+
+    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(empty_download)}))
+
+    with pytest.raises(flows.YFPricesMissingError):
+        flows.fetch_and_store.fn("TEST", "2020-01-01", "2020-01-02", "day")
 
