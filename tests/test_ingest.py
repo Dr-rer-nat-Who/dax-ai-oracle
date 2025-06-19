@@ -97,9 +97,15 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     assert path.exists()
     assert len(calls) >= 2
-    assert pd.Timestamp(calls[0][0]).tz_localize(None) == existing.index.max() + pd.Timedelta(minutes=1)
+    start_call = pd.Timestamp(calls[0][0])
+    if start_call.tzinfo is None:
+        start_call = start_call.tz_localize("UTC")
+    else:
+        start_call = start_call.tz_convert("UTC")
+    expect_start = existing.index.tz_localize("UTC").max() + pd.Timedelta(minutes=1)
+    assert start_call == expect_start
     df = pd.read_parquet(path)
-    assert df.index.tz is None
+    assert df.index.tz is not None
     for s, e in calls:
         assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
 
@@ -112,7 +118,7 @@ def test_fetch_and_store_minute_start_cutoff(tmp_path, monkeypatch):
 
     starts = []
 
-    def fake_download(ticker, start, end, interval, auto_adjust, progress):
+    def fake_download(ticker, start, end, interval, auto_adjust, progress, threads=False):
         starts.append(start)
         idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
         return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)

@@ -27,7 +27,7 @@ def test_compute_features_with_exogenous(monkeypatch):
             "Low": [1, 2, 3],
             "Close": [1, 2, 3],
         },
-        index=pd.date_range("2021-01-01", periods=3, freq="D"),
+        index=pd.date_range("2021-01-01", periods=3, freq="D", tz="UTC"),
     )
     exo = df * 2
 
@@ -43,6 +43,7 @@ def test_compute_features_with_exogenous(monkeypatch):
     assert "dax_future_spread" in feats.columns
     assert "holiday_flag" in feats.columns
     assert len(feats) == len(df)
+    assert feats.index.tz is not None
 
 
 def test_compute_features_without_talib(monkeypatch):
@@ -53,7 +54,7 @@ def test_compute_features_without_talib(monkeypatch):
             "Low": [0, 1],
             "Close": [1, 2],
         },
-        index=pd.date_range("2021-01-01", periods=2, freq="D"),
+        index=pd.date_range("2021-01-01", periods=2, freq="D", tz="UTC"),
     )
 
     monkeypatch.setattr(p, "talib", None, raising=False)
@@ -61,6 +62,7 @@ def test_compute_features_without_talib(monkeypatch):
 
     feats = p.compute_features(df)
     assert list(feats["ATR"]) == [0, 0]
+    assert feats.index.tz is not None
 
 
 
@@ -78,4 +80,23 @@ def test_eurex_holiday_flag():
     idx = pd.to_datetime(["2021-12-27", "2021-12-29"])
     feats = p._datetime_features(idx)
     assert list(feats["holiday_flag"]) == [1, 0]
+
+
+def test_compute_features_localizes_naive_index(monkeypatch):
+    df = pd.DataFrame(
+        {
+            "Open": [1, 2],
+            "High": [1, 2],
+            "Low": [0, 1],
+            "Close": [1, 2],
+        },
+        index=pd.date_range("2022-01-01", periods=2, freq="D"),
+    )
+
+    monkeypatch.setattr(p, "talib", None, raising=False)
+    monkeypatch.setattr(p, "_talib_features", lambda df: pd.DataFrame(index=df.index))
+
+    feats = p.compute_features(df)
+    assert feats.index.tz is not None
+    assert str(feats.index.tz) == "UTC"
 
