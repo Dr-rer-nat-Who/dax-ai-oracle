@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+import inspect
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 import logging
@@ -10,19 +11,14 @@ import pandas as pd
 import yaml
 import time
 
-from utils.yf_compat import _COMPAT_ARGS, YFPricesMissingError
+from utils.yf_compat import _COMPAT_ARGS
 import yfinance as yf
 
-_COMPAT_ARGS: dict[str, bool] = {}
-if "threads" in inspect.signature(yf.download).parameters:
-    _COMPAT_ARGS["threads"] = False
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 try:
-    from yfinance.exceptions import YFPricesMissingError as _OrigYFError  # type: ignore
-    class YFPricesMissingError(Exception):  # pragma: no cover - simplified
-        pass
+    from yfinance.exceptions import YFPricesMissingError  # type: ignore
 except Exception:  # pragma: no cover - fallback when yfinance missing
     class YFPricesMissingError(Exception):
         pass
@@ -40,7 +36,7 @@ from prefect.task_runners import SequentialTaskRunner
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from features.pipelines import compute_features
-from .cleanup import _resample_5min, cleanup_flow, remove_checkpoints
+from .cleanup import _resample_5min, cleanup_flow, remove_checkpoints, _disk_free_gb
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -120,7 +116,12 @@ def _download_with_retry(
                 )
             except TypeError:
                 # fallback for older yfinance versions without kwargs
-
+                return yf.download(
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
                     **params,
                 )
 
