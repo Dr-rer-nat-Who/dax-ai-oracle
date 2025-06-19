@@ -13,7 +13,7 @@ def test_ingest_sample_data(tmp_path, monkeypatch):
 
     # fake yfinance download
     class FakeYF:
-        def download(self, ticker, start, end, interval, auto_adjust, progress):
+        def download(self, ticker, start, end, interval, auto_adjust, progress, threads=False):
             index = pd.date_range("2020-01-01", periods=2, freq="D", tz="UTC")
             df = pd.DataFrame({"Open": [1, 2], "High": [1, 2], "Low": [1, 2], "Close": [1, 2]}, index=index)
             return df
@@ -72,7 +72,7 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_download(ticker, start, end, interval, auto_adjust, progress):
+    def fake_download(ticker, start, end, interval, auto_adjust, progress, threads=False):
         calls.append((start, end))
         idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
         return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)

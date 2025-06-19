@@ -3,9 +3,13 @@ from __future__ import annotations
 import pickle
 import time
 from pathlib import Path
+import os
 
 import pandas as pd
 import streamlit as st
+
+# ensure yfinance does not use the default SQLite cache
+os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 
 try:  # optional, can be missing in test environment
     import yfinance as yf
@@ -43,7 +47,7 @@ def show_live() -> None:
     st.header("Live View")
     if yf is not None:
         try:
-            data = yf.download("^GDAXI", period="1d", interval="1m")
+            data = yf.download("^GDAXI", period="1d", interval="1m", threads=False)
             st.line_chart(data["Close"])
         except Exception as exc:  # pragma: no cover - network issues
             st.warning(f"Could not download data: {exc}")

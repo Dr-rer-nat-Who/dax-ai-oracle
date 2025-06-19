@@ -1,11 +1,15 @@
 from pathlib import Path
 import subprocess
 import sys
+import os
 
 import pandas as pd
 import yaml
 import yfinance as yf
 import time
+
+# disable SQLite caching to avoid OperationalError when cache path is unwritable
+os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 try:
     from yfinance.exceptions import YFPricesMissingError  # type: ignore
 except Exception:  # pragma: no cover - fallback for tests without yfinance
@@ -71,6 +75,7 @@ def _download_with_retry(
                 interval=interval,
                 auto_adjust=False,
                 progress=False,
+                threads=False,
             )
         except YFPricesMissingError:
             raise
@@ -152,6 +157,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     except Exception as exc:  # noqa: BLE001
         print(f"Warning: failed to download {ticker}: {exc}")
         return path
+
 
     if isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
