@@ -1,5 +1,5 @@
 prefect
-yfinance>=0.2.34,<0.3
+yfinance==0.2.36
 numpy>=1.25
 pandas
 pyarrow

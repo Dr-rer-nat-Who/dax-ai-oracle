@@ -75,25 +75,22 @@ def _download_with_retry(
         try:
             try:
                 return yf.download(
-                ticker,
-                start=start.to_pydatetime(),
-                end=end.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-                **_COMPAT_ARGS,
-
-
-            )
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **_COMPAT_ARGS,
+                )
             except TypeError:
+                # fallback for older yfinance versions without kwargs
                 return yf.download(
-                   ticker,
-                start=start.to_pydatetime(),
-                end=end.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-                **_COMPAT_ARGS,
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **_COMPAT_ARGS,
                 )
 
         except YFPricesMissingError:

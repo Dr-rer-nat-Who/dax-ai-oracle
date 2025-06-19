@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import streamlit as st
+import pandas as pd
 
 
 def load_app(yf_module):
@@ -44,9 +45,6 @@ def test_caption_without_yfinance(monkeypatch):
     monkeypatch.setattr(st.sidebar, 'caption', lambda msg: msgs.append(msg))
     load_app(None)
     assert msgs[-1] == 'yfinance unavailable'
-=======
-import pandas as pd
-import streamlit as st
 
 
 def reload_app(monkeypatch, import_error=False):
