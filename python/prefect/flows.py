@@ -10,6 +10,10 @@ import time
 from utils.yf_compat import _COMPAT_ARGS, YFPricesMissingError
 import yfinance as yf
 
+_COMPAT_ARGS: dict[str, bool] = {}
+if "threads" in inspect.signature(yf.download).parameters:
+    _COMPAT_ARGS["threads"] = False
+
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 from prefect import flow, task
@@ -72,7 +76,6 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
-                progress=False,
                 **_COMPAT_ARGS,
 
 
@@ -84,7 +87,6 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
-                progress=False,
                 **_COMPAT_ARGS,
                 )
 

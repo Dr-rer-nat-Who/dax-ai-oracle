@@ -22,6 +22,12 @@ if yf is not None:
 else:
     st.sidebar.caption("yfinance unavailable")
 
+
+_COMPAT_ARGS: dict[str, bool] = {}
+if yf is not None and "threads" in inspect.signature(yf.download).parameters:
+    _COMPAT_ARGS["threads"] = False
+
+
 try:  # optional dependency for equity curves
     import vectorbt as vbt
 except Exception:  # pragma: no cover - optional dependency
