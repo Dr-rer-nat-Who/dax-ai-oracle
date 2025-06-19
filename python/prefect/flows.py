@@ -2,9 +2,11 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+import logging
+import inspect
+
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
-import logging
 
 import pandas as pd
 import yaml
@@ -12,10 +14,6 @@ import time
 
 from utils.yf_compat import _COMPAT_ARGS, YFPricesMissingError
 import yfinance as yf
-
-_COMPAT_ARGS: dict[str, bool] = {}
-if "threads" in inspect.signature(yf.download).parameters:
-    _COMPAT_ARGS["threads"] = False
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
@@ -104,41 +102,31 @@ def _download_with_retry(
     delay: float = 1.0,
 ) -> pd.DataFrame | None:
     """Call ``yf.download`` with a few retries on failure."""
+    params = {**_COMPAT_ARGS}
+    if "progress" not in inspect.signature(yf.download).parameters:
+        params.pop("progress", None)
+
     for attempt in range(attempts):
         try:
+            return yf.download(
+                ticker,
+                start=start.to_pydatetime(),
+                end=end.to_pydatetime(),
+                interval=interval,
+                auto_adjust=False,
+                **params,
+            )
+        except TypeError:
             try:
-                params = {**_COMPAT_ARGS}
-                if "progress" not in inspect.signature(yf.download).parameters:
-                    params.pop("progress", None)
                 return yf.download(
                     ticker,
                     start=start.to_pydatetime(),
                     end=end.to_pydatetime(),
                     interval=interval,
                     auto_adjust=False,
-                    **_COMPAT_ARGS,
                 )
             except TypeError:
-                # fallback for older yfinance versions without kwargs
-
-                    **params,
-                )
-
-            except TypeError:
-                params = {**_COMPAT_ARGS}
-                if "progress" not in inspect.signature(yf.download).parameters:
-                    params.pop("progress", None)
-                
-                return yf.download(
-                    ticker,
-                    start=start.to_pydatetime(),
-                    end=end.to_pydatetime(),
-                    interval=interval,
-                    auto_adjust=False,
-                    **_COMPAT_ARGS,
-                    **params,
-
-                )
+                raise
 
         except (YFPricesMissingError, YFNoDataError):
             raise
