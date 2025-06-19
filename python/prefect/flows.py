@@ -16,8 +16,10 @@ if "threads" in inspect.signature(yf.download).parameters:
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 try:
-    from yfinance.exceptions import YFPricesMissingError  # type: ignore
-except Exception:  # pragma: no cover - fallback for tests without yfinance
+    from yfinance.exceptions import YFPricesMissingError as _OrigYFError  # type: ignore
+    class YFPricesMissingError(Exception):  # pragma: no cover - simplified
+        pass
+except Exception:  # pragma: no cover - fallback when yfinance missing
     class YFPricesMissingError(Exception):
         pass
 from prefect import flow, task
@@ -39,11 +41,7 @@ FEATURES_DIR = ROOT_DIR / "python" / "features"
 MAX_MINUTE_SPAN = pd.Timedelta(days=8)
 
 CHECKPOINT_BASE = Path.home() / "checkpoints"
-# ensure the result storage block exists for local checkpoints
-try:
-    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
-except Exception:
-    pass
+# avoid creating Prefect storage blocks during tests
 CHECKPOINT_STORAGE = "local-file-system/checkpoints"
 
 
@@ -74,26 +72,28 @@ def _download_with_retry(
     for attempt in range(attempts):
         try:
             try:
+                params = {**_COMPAT_ARGS}
+                if "progress" not in inspect.signature(yf.download).parameters:
+                    params.pop("progress", None)
                 return yf.download(
-                ticker,
-                start=start.to_pydatetime(),
-                end=end.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-                **_COMPAT_ARGS,
-
-
-            )
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **params,
+                )
             except TypeError:
+                params = {**_COMPAT_ARGS}
+                if "progress" not in inspect.signature(yf.download).parameters:
+                    params.pop("progress", None)
                 return yf.download(
-                   ticker,
-                start=start.to_pydatetime(),
-                end=end.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-                progress=False,
-                **_COMPAT_ARGS,
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **params,
                 )
 
         except YFPricesMissingError:
