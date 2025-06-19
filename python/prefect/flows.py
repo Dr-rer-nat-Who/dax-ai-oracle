@@ -160,13 +160,16 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
 
 
     if isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
+        # keep index timezone-aware to avoid inadvertent localization later
+        df.index = pd.to_datetime(df.index, utc=True)
 
 
 
 
     if freq == "minute" and not df.empty:
-        cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=90)
+        cutoff = (
+            pd.Timestamp.utcnow().tz_localize("UTC") - pd.Timedelta(days=90)
+        )
         older = df[df.index < cutoff]
         recent = df[df.index >= cutoff]
         if not older.empty:
