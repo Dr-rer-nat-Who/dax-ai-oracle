@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+import logging
 
 import pandas as pd
 import yaml
@@ -96,8 +97,13 @@ def _download_with_retry(
             if attempt < attempts - 1:
                 time.sleep(delay)
             else:
-                print(
-                    f"Warning: failed to download {ticker} {start} - {end} after {attempts} attempts: {exc}"
+                logging.warning(
+                    "failed to download %s %s - %s after %d attempts: %s",
+                    ticker,
+                    start,
+                    end,
+                    attempts,
+                    exc,
                 )
                 return None
 
@@ -169,7 +175,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
     except YFPricesMissingError:
         raise
     except Exception as exc:  # noqa: BLE001
-        print(f"Warning: failed to download {ticker}: {exc}")
+        logging.warning("failed to download %s: %s", ticker, exc)
         return path
 
 
