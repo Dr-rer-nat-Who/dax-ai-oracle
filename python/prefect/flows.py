@@ -4,6 +4,7 @@ import sys
 import os
 import inspect
 
+
 import logging
 
 
@@ -13,6 +14,8 @@ os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 import pandas as pd
 import yaml
 import time
+
+from ..utils.yf_compat import YFPricesMissingError
 
 from utils.yf_compat import _COMPAT_ARGS
 import yfinance as yf
@@ -34,7 +37,10 @@ except Exception:  # pragma: no cover - fallback for tests without yfinance
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
-from prefect.task_runners import SequentialTaskRunner
+try:
+    from prefect.task_runners import SequentialTaskRunner
+except Exception:  # Prefect >=3
+    from prefect.task_runners import ThreadPoolTaskRunner as SequentialTaskRunner
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -103,7 +109,8 @@ def _download_with_retry(
     delay: float = 1.0,
 ) -> pd.DataFrame | None:
     """Call ``yf.download`` with a few retries on failure."""
-    params = {**_COMPAT_ARGS}
+    params = {"progress": False, **_COMPAT_ARGS}
+
     if "progress" not in inspect.signature(yf.download).parameters:
         params.pop("progress", None)
 
@@ -118,6 +125,7 @@ def _download_with_retry(
                 **params,
             )
         except TypeError:
+
             try:
                 return yf.download(
                     ticker,
