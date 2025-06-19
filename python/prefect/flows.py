@@ -5,21 +5,13 @@ import os
 
 import pandas as pd
 import yaml
-import inspect
-import yfinance as yf
 import time
 
-_COMPAT_ARGS = {"progress": False}
-if "threads" in inspect.signature(yf.download).parameters:
-    _COMPAT_ARGS["threads"] = False
+from utils.yf_compat import _COMPAT_ARGS, YFPricesMissingError
+import yfinance as yf
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
-try:
-    from yfinance.exceptions import YFPricesMissingError  # type: ignore
-except Exception:  # pragma: no cover - fallback for tests without yfinance
-    class YFPricesMissingError(Exception):
-        pass
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext

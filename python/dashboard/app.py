@@ -4,10 +4,10 @@ import pickle
 import time
 from pathlib import Path
 import os
-import inspect
 
 import pandas as pd
 import streamlit as st
+from utils.yf_compat import _COMPAT_ARGS
 
 # ensure yfinance does not use the default SQLite cache
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
@@ -21,10 +21,6 @@ if yf is not None:
     st.sidebar.caption(f"yfinance {yf.__version__}")
 else:
     st.sidebar.caption("yfinance unavailable")
-
-_COMPAT_ARGS = {"progress": False}
-if yf is not None and "threads" in inspect.signature(yf.download).parameters:
-    _COMPAT_ARGS["threads"] = False
 
 try:  # optional dependency for equity curves
     import vectorbt as vbt
