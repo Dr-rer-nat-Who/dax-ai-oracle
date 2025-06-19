@@ -16,6 +16,11 @@ try:  # optional, can be missing in test environment
 except Exception:  # pragma: no cover - optional dependency
     yf = None
 
+if yf is not None:
+    st.sidebar.caption(f"yfinance {yf.__version__}")
+else:
+    st.sidebar.caption("yfinance unavailable")
+
 try:  # optional dependency for equity curves
     import vectorbt as vbt
 except Exception:  # pragma: no cover - optional dependency
