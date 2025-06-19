@@ -22,7 +22,7 @@ if yf is not None:
 else:
     st.sidebar.caption("yfinance unavailable")
 
-_COMPAT_ARGS = {"progress": False}
+_COMPAT_ARGS: dict[str, bool] = {}
 if yf is not None and "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
 
