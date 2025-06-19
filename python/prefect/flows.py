@@ -80,7 +80,6 @@ def _download_with_retry(
                 interval=interval,
                 auto_adjust=False,
                 progress=False,
-
                 **_COMPAT_ARGS,
 
             )

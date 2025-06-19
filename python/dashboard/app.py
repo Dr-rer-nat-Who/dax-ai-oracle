@@ -17,6 +17,11 @@ try:  # optional, can be missing in test environment
 except Exception:  # pragma: no cover - optional dependency
     yf = None
 
+if yf is not None:
+    st.sidebar.caption(f"yfinance {yf.__version__}")
+else:
+    st.sidebar.caption("yfinance unavailable")
+
 _COMPAT_ARGS = {"progress": False}
 if yf is not None and "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
