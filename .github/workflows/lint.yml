@@ -1,0 +1,37 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11"]
+        torch: ["cpu", "cu118"]
+        include:
+          - torch: cpu
+            torch-url: https://download.pytorch.org/whl/cpu
+          - torch: cu118
+            torch-url: https://download.pytorch.org/whl/cu118
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install torch --index-url ${{ matrix.torch-url }}
+          pip install mypy ruff bandit
+      - name: Run mypy
+        run: mypy python
+      - name: Run ruff
+        run: ruff python
+      - name: Run bandit
+        run: bandit -r python
