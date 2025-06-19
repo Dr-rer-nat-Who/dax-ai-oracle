@@ -57,7 +57,7 @@ This command ingests data, trains models, backtests, cleans up and launches the 
 After running the flows you can also launch the dashboard manually:
 
 ```bash
-streamlit run python/dashboard/app.py
+streamlit run daxai/dashboard/app.py
 ```
 
 ## Development

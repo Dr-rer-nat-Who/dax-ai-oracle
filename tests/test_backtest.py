@@ -6,7 +6,7 @@ import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from python.prefect import backtest as bt
+from daxai.prefect import backtest as bt
 
 
 def test_backtest_produces_metrics(tmp_path: Path, monkeypatch) -> None:

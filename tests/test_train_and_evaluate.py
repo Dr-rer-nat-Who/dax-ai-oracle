@@ -6,7 +6,7 @@ import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from python.prefect.train_and_evaluate import run_study, load_config
+from daxai.prefect.train_and_evaluate import run_study, load_config
 
 
 class DummyMlflow:
@@ -48,8 +48,8 @@ class DummyMlflow:
 
 def test_lightgbm_model_trains(tmp_path: Path, monkeypatch) -> None:
     cfg = load_config("optuna")
-    monkeypatch.setattr("python.prefect.train_and_evaluate.mlflow", DummyMlflow())
-    from python.prefect import train_and_evaluate as te
+    monkeypatch.setattr("daxai.prefect.train_and_evaluate.mlflow", DummyMlflow())
+    from daxai.prefect import train_and_evaluate as te
 
     te.FEATURES_DIR = tmp_path
     freq_dir = tmp_path / "day"
@@ -69,7 +69,7 @@ def test_lightgbm_model_trains(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_train_model_predict_evaluate(monkeypatch):
-    from python.prefect import train_and_evaluate as te
+    from daxai.prefect import train_and_evaluate as te
 
     monkeypatch.setattr(te, "torch", None)
     X = np.random.rand(20, 2)
@@ -82,7 +82,7 @@ def test_train_model_predict_evaluate(monkeypatch):
 
 
 def test_range_sampling(monkeypatch):
-    from python.prefect import train_and_evaluate as te
+    from daxai.prefect import train_and_evaluate as te
 
     monkeypatch.setattr(te, "mlflow", DummyMlflow())
 

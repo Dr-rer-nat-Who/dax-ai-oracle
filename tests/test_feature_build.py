@@ -1,6 +1,6 @@
 import pandas as pd
 
-from python.prefect import flows
+from daxai.prefect import flows
 
 
 def test_feature_build_creates_feature_files(tmp_path, monkeypatch):

@@ -1,4 +1,4 @@
-from python.cli import main
+from daxai.cli import main
 
 if __name__ == "__main__":
     main()

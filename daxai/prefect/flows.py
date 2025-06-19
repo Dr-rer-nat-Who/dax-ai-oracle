@@ -27,8 +27,8 @@ from .cleanup import _resample_5min, cleanup_flow, remove_checkpoints
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 ROOT_DIR = Path(__file__).resolve().parents[2]
-DATA_DIR = ROOT_DIR / "python" / "data"
-FEATURES_DIR = ROOT_DIR / "python" / "features"
+DATA_DIR = ROOT_DIR / "daxai" / "data"
+FEATURES_DIR = ROOT_DIR / "daxai" / "features"
 
 # maximum window length for minute data downloads
 MAX_MINUTE_SPAN = pd.Timedelta(days=8)

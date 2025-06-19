@@ -5,8 +5,8 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from python.features import pipelines as p
-from python.features import labels as lbl
+from daxai.features import pipelines as p
+from daxai.features import labels as lbl
 
 
 def test_window_embeddings_basic():

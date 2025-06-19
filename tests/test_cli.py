@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import python.cli as cli
+import daxai.cli as cli
 
 
 def test_run_all_invokes_flows(monkeypatch):

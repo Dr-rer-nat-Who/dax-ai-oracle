@@ -36,10 +36,10 @@ from prefect.runtime.flow_run import FlowRunContext
 from .cleanup import dvc_gc_workspace
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT_DIR / "python" / "models"
+MODELS_DIR = ROOT_DIR / "daxai" / "models"
 MLRUNS_DIR = ROOT_DIR / "mlruns"
 BEST_DIR = MLRUNS_DIR / "best"
-DATA_DIR = ROOT_DIR / "python" / "data"
+DATA_DIR = ROOT_DIR / "daxai" / "data"
 
 
 def _maybe_call(task_func, *args, **kwargs):

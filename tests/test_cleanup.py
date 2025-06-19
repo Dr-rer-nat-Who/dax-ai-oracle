@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from python.prefect import cleanup as c
+from daxai.prefect import cleanup as c
 
 
 def test_drop_unreferenced_aggregates_old_minutes(tmp_path, monkeypatch):

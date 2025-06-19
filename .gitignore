@@ -25,4 +25,4 @@ dist-ssr
 # Python artifacts
 __pycache__/
 mlruns/
-python/models/*.pkl
+daxai/models/*.pkl

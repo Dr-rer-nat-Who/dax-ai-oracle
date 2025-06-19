@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover - optional dependency
     px = None
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "python" / "models"
+MODELS_DIR = ROOT / "daxai" / "models"
 BEST_DIR = ROOT / "mlruns" / "best"
 REFRESH_SEC = 60
 

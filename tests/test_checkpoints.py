@@ -1,4 +1,4 @@
-from python.prefect import flows, cleanup
+from daxai.prefect import flows, cleanup
 
 
 def test_flows_have_checkpoints():

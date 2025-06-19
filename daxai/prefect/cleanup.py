@@ -13,10 +13,10 @@ from prefect.runtime.flow_run import FlowRunContext
 import yaml
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-DATA_DIR = ROOT_DIR / "python" / "data"
+DATA_DIR = ROOT_DIR / "daxai" / "data"
 CACHE_DIR = Path.home() / ".prefect"
 CHECKPOINT_BASE = Path.home() / "checkpoints"
-CONFIG_DIR = ROOT_DIR / "python" / "configs"
+CONFIG_DIR = ROOT_DIR / "daxai" / "configs"
 
 
 def load_config(name: str) -> dict:

@@ -1,5 +1,5 @@
 import pandas as pd
-from python.prefect import flows
+from daxai.prefect import flows
 
 
 def test_ingest_sample_data(tmp_path, monkeypatch):

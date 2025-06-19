@@ -1,4 +1,4 @@
-from python.prefect import flows
+from daxai.prefect import flows
 
 
 def test_load_configs():

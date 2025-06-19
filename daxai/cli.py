@@ -3,9 +3,9 @@ from pathlib import Path
 import subprocess
 
 import yaml
-from python.prefect.flows import ingest, feature_build, backtest
-from python.prefect.train_and_evaluate import train_all
-from python.prefect.cleanup import cleanup, _disk_free_gb
+from daxai.prefect.flows import ingest, feature_build, backtest
+from daxai.prefect.train_and_evaluate import train_all
+from daxai.prefect.cleanup import cleanup, _disk_free_gb
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -86,7 +86,7 @@ def main(argv=None):
         if args.cleanup == "yes":
             cleanup()
         subprocess.Popen(
-            ["streamlit", "run", str(ROOT_DIR / "python" / "dashboard" / "app.py")]
+            ["streamlit", "run", str(ROOT_DIR / "daxai" / "dashboard" / "app.py")]
         )
     elif args.command == "ingest":
         ingest(freq=args.freq, config=data_cfg)

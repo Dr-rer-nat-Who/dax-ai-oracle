@@ -28,11 +28,11 @@ from sklearn.metrics import mean_squared_error
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-CONFIG_DIR = ROOT_DIR / "python" / "configs"
-MODELS_DIR = ROOT_DIR / "python" / "models"
+CONFIG_DIR = ROOT_DIR / "daxai" / "configs"
+MODELS_DIR = ROOT_DIR / "daxai" / "models"
 MODELS_DIR.mkdir(exist_ok=True)
-DATA_DIR = ROOT_DIR / "python" / "data"
-FEATURES_DIR = ROOT_DIR / "python" / "features"
+DATA_DIR = ROOT_DIR / "daxai" / "data"
+FEATURES_DIR = ROOT_DIR / "daxai" / "features"
 
 # Valid label/frequency pairs for each model family as defined in the project
 # blueprint. This restricts ``train_all`` to exactly the 27 intended
@@ -52,7 +52,7 @@ MODEL_LABEL_FREQ: Dict[str, Dict[str, list[str]]] = {
 
 
 def _load_dataset(freq: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-    """Load engineered features from ``python/features/<freq>/`` and generate labels.
+    """Load engineered features from ``daxai/features/<freq>/`` and generate labels.
 
     The data is read in chunks using ``pyarrow.dataset`` so that even very large
     parquet collections can be processed without loading everything into memory
@@ -226,7 +226,7 @@ def load_model(name: str) -> Dict[str, Any]:
 
 
 def _model_funcs(name: str):
-    module = importlib.import_module(f"python.models.{name}")
+    module = importlib.import_module(f"daxai.models.{name}")
     return module.train, module.predict
 
 
