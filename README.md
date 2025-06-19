@@ -114,6 +114,13 @@ environment:
    npm install
    ```
 
+6. Disable the default yfinance SQLite cache (or set a writable cache path) to
+   avoid `OperationalError: unable to open database file` errors:
+
+   ```bash
+   export YFINANCE_NO_CACHE=1
+   ```
+
 After these steps the command below will ingest data, train the models,
 backtest and launch the Streamlit dashboard on `localhost:8501`:
 
