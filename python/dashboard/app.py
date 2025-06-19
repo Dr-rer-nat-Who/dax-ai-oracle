@@ -23,7 +23,8 @@ except Exception:  # pragma: no cover - optional dependency
 
 try:  # optional, fallback plotting backend
     import plotly.express as px
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
+    st.warning("Plotly not installed")
     px = None
 
 ROOT = Path(__file__).resolve().parents[2]
