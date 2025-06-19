@@ -17,6 +17,19 @@ _COMPAT_ARGS: dict[str, bool] = {}
 if "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
 
+# disable SQLite caching to avoid OperationalError when cache path is unwritable
+os.environ.setdefault("YFINANCE_NO_CACHE", "1")
+try:
+    from yfinance.exceptions import YFPricesMissingError  # type: ignore
+except Exception:  # pragma: no cover - fallback for tests without yfinance
+    class YFPricesMissingError(Exception):
+        pass
+try:
+    from yfinance.shared._exceptions import YFNoDataError  # type: ignore
+except Exception:  # pragma: no cover - fallback for tests without yfinance
+    class YFNoDataError(Exception):
+        pass
+
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
@@ -110,7 +123,7 @@ def _download_with_retry(
                 **_COMPAT_ARGS,
                 )
 
-        except YFPricesMissingError:
+        except (YFPricesMissingError, YFNoDataError):
             raise
         except Exception as exc:  # noqa: BLE001
             if attempt < attempts - 1:
@@ -191,7 +204,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
                 raise YFPricesMissingError("no data returned")
             new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
-    except YFPricesMissingError:
+    except (YFPricesMissingError, YFNoDataError):
         raise
     except Exception as exc:  # noqa: BLE001
         logging.warning("failed to download %s: %s", ticker, exc)
