@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from prophet import Prophet
+try:
+    from prophet import Prophet
+except ImportError as exc:  # pragma: no cover - optional dependency
+    raise RuntimeError(
+        "Prophet-Modell angefordert, 'prophet' fehlt. Installiere mit extras 'experiments'."
+    ) from exc
 
 
 def train(X: np.ndarray, y: np.ndarray, params: dict | None = None) -> dict:
