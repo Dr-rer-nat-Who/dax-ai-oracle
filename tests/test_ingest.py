@@ -11,14 +11,7 @@ def test_ingest_sample_data(tmp_path, monkeypatch):
     monkeypatch.setattr(flows.subprocess, "run", lambda *a, **k: None)
     monkeypatch.setattr(flows, "ensure_dvc_repo", lambda: None)
 
-    # fake yfinance download
-    class FakeYF:
-        def download(self, ticker, start, end, interval, auto_adjust, progress, threads=False):
-            index = pd.date_range("2020-01-01", periods=2, freq="D", tz="UTC")
-            df = pd.DataFrame({"Open": [1, 2], "High": [1, 2], "Low": [1, 2], "Close": [1, 2]}, index=index)
-            return df
 
-    monkeypatch.setattr(flows, "yf", FakeYF())
 
     path = flows.fetch_and_store.fn(
         ticker="TEST",
@@ -64,7 +57,7 @@ def test_ingest_per_freq_ranges(tmp_path, monkeypatch):
         ("2020-01-01", "2020-01-10", "hour"),
     ]
 
-def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
+def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch, yf_minute_df):
     flows.DATA_DIR = tmp_path / "data"
     flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -74,10 +67,11 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     def fake_download(ticker, start, end, interval, auto_adjust, progress, threads=False):
         calls.append((start, end))
-        idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
-        return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
+        df = yf_minute_df.copy()
+        df.index = pd.date_range(start, periods=len(df), freq="T", tz="UTC")
+        return df
 
-    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
+    monkeypatch.setattr(flows.yf, "download", fake_download)
     monkeypatch.setattr(flows.pd.Timestamp, "utcnow", staticmethod(lambda: pd.Timestamp("2024-02-01")))
 
     dest = flows.DATA_DIR / "raw" / "minute"
@@ -97,14 +91,20 @@ def test_fetch_and_store_minute_chunks(tmp_path, monkeypatch):
 
     assert path.exists()
     assert len(calls) >= 2
-    assert pd.Timestamp(calls[0][0]).tz_localize(None) == existing.index.max() + pd.Timedelta(minutes=1)
+    start_call = pd.Timestamp(calls[0][0])
+    if start_call.tzinfo is None:
+        start_call = start_call.tz_localize("UTC")
+    else:
+        start_call = start_call.tz_convert("UTC")
+    expect_start = existing.index.tz_localize("UTC").max() + pd.Timedelta(minutes=1)
+    assert start_call == expect_start
     df = pd.read_parquet(path)
-    assert df.index.tz is None
+    assert df.index.tz is not None
     for s, e in calls:
         assert pd.Timestamp(e) - pd.Timestamp(s) <= pd.Timedelta(days=8)
 
 
-def test_fetch_and_store_minute_start_cutoff(tmp_path, monkeypatch):
+def test_fetch_and_store_minute_start_cutoff(tmp_path, monkeypatch, yf_minute_df):
     flows.DATA_DIR = tmp_path / "data"
     flows.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -112,12 +112,13 @@ def test_fetch_and_store_minute_start_cutoff(tmp_path, monkeypatch):
 
     starts = []
 
-    def fake_download(ticker, start, end, interval, auto_adjust, progress):
+    def fake_download(ticker, start, end, interval, auto_adjust, progress, threads=False):
         starts.append(start)
-        idx = pd.date_range(start, periods=1, freq="T", tz="UTC")
-        return pd.DataFrame({"Open": [1], "High": [1], "Low": [1], "Close": [1]}, index=idx)
+        df = yf_minute_df.copy()
+        df.index = pd.date_range(start, periods=len(df), freq="T", tz="UTC")
+        return df
 
-    monkeypatch.setattr(flows, "yf", type("_YF", (), {"download": staticmethod(fake_download)}))
+    monkeypatch.setattr(flows.yf, "download", fake_download)
     monkeypatch.setattr(flows.pd.Timestamp, "utcnow", staticmethod(lambda: pd.Timestamp("2024-05-30")))
 
     path = flows.fetch_and_store.fn(

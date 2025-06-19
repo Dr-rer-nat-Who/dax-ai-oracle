@@ -4,6 +4,7 @@ import pickle
 import time
 from pathlib import Path
 import os
+import inspect
 
 import pandas as pd
 import streamlit as st
@@ -16,6 +17,10 @@ try:  # optional, can be missing in test environment
 except Exception:  # pragma: no cover - optional dependency
     yf = None
 
+_COMPAT_ARGS = {"progress": False}
+if yf is not None and "threads" in inspect.signature(yf.download).parameters:
+    _COMPAT_ARGS["threads"] = False
+
 try:  # optional dependency for equity curves
     import vectorbt as vbt
 except Exception:  # pragma: no cover - optional dependency
@@ -23,7 +28,8 @@ except Exception:  # pragma: no cover - optional dependency
 
 try:  # optional, fallback plotting backend
     import plotly.express as px
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
+    st.warning("Plotly not installed")
     px = None
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +53,7 @@ def show_live() -> None:
     st.header("Live View")
     if yf is not None:
         try:
-            data = yf.download("^GDAXI", period="1d", interval="1m", threads=False)
+            data = yf.download("^GDAXI", period="1d", interval="1m", **_COMPAT_ARGS)
             st.line_chart(data["Close"])
         except Exception as exc:  # pragma: no cover - network issues
             st.warning(f"Could not download data: {exc}")

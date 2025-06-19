@@ -62,7 +62,8 @@ streamlit run python/dashboard/app.py
 
 ## Development
 
-All documentation resides in the [docs](docs/) folder.
+All documentation resides in the [docs](docs/) folder. The minimum supported
+Python version is **3.11**.
 Run the tests with:
 
 ```bash
@@ -95,6 +96,13 @@ environment:
    ```bash
    brew install python@3.11 node ta-lib dvc
    ```
+   On Linux you can build TA‑Lib manually:
+
+   ```bash
+   wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+   tar -xzf ta-lib-0.4.0-src.tar.gz && cd ta-lib
+   ./configure --prefix=/usr/local && make && sudo make install
+   ```
 
 3. Create a Python virtual environment and activate it:
 
@@ -109,6 +117,14 @@ environment:
    ```bash
    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/mps
    pip install -e .[dashboard]
+
+   ```
+
+   Afterwards install the remaining requirements:
+
+   ```bash
+   pip install -r requirements.txt
+
    ```
 
 5. Install the Node dependencies for the dashboard (uses Vite/React):
@@ -117,7 +133,14 @@ environment:
    npm install
    ```
 
-6. Disable the default yfinance SQLite cache (or set a writable cache path) to
+6. (Optional) Install additional Python extras:
+
+   ```bash
+   pip install .[dashboard]
+   pip install .[experiments]
+   ```
+
+7. Disable the default yfinance SQLite cache (or set a writable cache path) to
    avoid `OperationalError: unable to open database file` errors:
 
    ```bash
