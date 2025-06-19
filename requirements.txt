@@ -1,5 +1,6 @@
 prefect
-yfinance
+yfinance>=0.2.34,<0.3
+numpy>=1.25
 pandas
 pyarrow
 dvc[gdrive]
@@ -12,7 +13,12 @@ streamlit
 scikit-learn
 lightgbm
 catboost
+torch>=2.2  # CPU version; replace with torch>=2.2+cu121 for GPU
 pytorch-lightning
+pytorch-tabnet>=4.1
+plotly>=5.20
+prophet>=1.1
+pyyaml>=6
 stable-baselines3
 gymnasium
 pandas_market_calendars

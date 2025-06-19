@@ -109,13 +109,44 @@ python cli.py run-all --freq all --cleanup yes
 
 which ingests data, trains models, backtests, cleans up and launches the dashboard at `localhost:8501`.
 
-## 11. Operation & Monitoring
+## 11. Environment Setup
+
+The codebase requires **Python 3.11** or newer. Install PyTorch and TA‑Lib before running the flows.
+
+- Build TA‑Lib manually if your system packages do not provide it:
+
+  ```bash
+  wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+  tar -xzf ta-lib-0.4.0-src.tar.gz && cd ta-lib
+  ./configure --prefix=/usr/local && make && sudo make install
+  ```
+
+- Install PyTorch for CPU only:
+
+  ```bash
+  pip install torch torchvision torchaudio
+  ```
+
+- Or for NVIDIA GPUs with CUDA 12.1:
+
+  ```bash
+  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+  ```
+
+- Optional extras can be installed with:
+
+  ```bash
+  pip install .[dashboard]
+  pip install .[experiments]
+  ```
+
+## 12. Operation & Monitoring
 
 - Prefect UI (port 4200) shows logs and resumes flows after crashes.
 - MLflow UI (port 5000) compares metrics and allows artifact download.
 - A disk guard triggers cleanup when free space drops below 5 GB.
 
-## 12. Optional Extensions
+## 13. Optional Extensions
 
 - Online learning with `river` for minute data.
 - Ensemble stacking (e.g. LightGBM + PatchTST output into a Meta‑CatBoost).
