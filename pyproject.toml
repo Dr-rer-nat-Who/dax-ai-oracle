@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dax-ai-oracle"
+version = "0.1.0"
+description = "DAX forecasting pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Unknown"}]
+license = {text = "MIT"}
+
+# Core dependencies roughly following requirements.txt
+# Listed minimally for testing; real project may use extras
+dependencies = [
+    "pandas",
+    "numpy",
+    "pyarrow",
+]
+
+[project.optional-dependencies]
+dashboard = ["plotly", "vectorbt"]
+experiments = ["prophet"]
+
+[project.scripts]
+dax-oracle = "python.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["python*"]
+
+[tool.setuptools.package-data]
+"python.configs" = ["*.yaml"]

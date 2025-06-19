@@ -72,6 +72,12 @@ def _window_embeddings(returns: pd.Series, length: int) -> pd.Series:
 
 def _datetime_features(index: pd.DatetimeIndex) -> pd.DataFrame:
     """Extract calendar information from the index."""
+    # ensure index is timezone-aware; default to UTC if not provided
+    if index.tz is None:
+        index = index.tz_localize("UTC")
+    else:
+        index = index.tz_convert("UTC")
+
     feats = pd.DataFrame(index=index)
     feats["weekday"] = index.dayofweek
     feats["month_end"] = index.is_month_end.astype(int)
@@ -82,8 +88,9 @@ def _datetime_features(index: pd.DatetimeIndex) -> pd.DataFrame:
         start = index.min().date()
         end = index.max().date()
         valid = cal.valid_days(start_date=start, end_date=end)
-        valid_dates = set(valid.tz_convert(None).normalize().date)
-        idx_dates = index.tz_localize(None).normalize().date
+        valid_dates = set(valid.tz_convert("UTC").normalize().date)
+        # convert to date for holiday lookup; timezone info no longer needed
+        idx_dates = index.tz_convert("UTC").normalize().date
         feats["holiday_flag"] = (~pd.Series(idx_dates, index=index).isin(valid_dates)).astype(int)
     except Exception:  # pragma: no cover - calendar optional
         feats["holiday_flag"] = 0
@@ -94,6 +101,11 @@ def compute_features(
     df: pd.DataFrame, exogenous: pd.DataFrame | None = None
 ) -> pd.DataFrame:
     """Compute a wide feature set for a price dataframe."""
+    if df.index.tz is None:
+        df.index = df.index.tz_localize("UTC")
+    else:
+        df.index = df.index.tz_convert("UTC")
+
     features = pd.DataFrame(index=df.index)
     features = features.join(_talib_features(df))
     features = features.join(_price_action_features(df))
