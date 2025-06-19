@@ -6,12 +6,14 @@ import pandas as pd
 
 def load_flows(has_threads: bool, monkeypatch):
     if has_threads:
-        def download(ticker, start=None, end=None, interval=None, auto_adjust=False, progress=True, threads=True):
+        def download(ticker, start=None, end=None, interval=None, auto_adjust=False, threads=True):
             return pd.DataFrame()
     else:
-        def download(ticker, start=None, end=None, interval=None, auto_adjust=False, progress=True):
+        def download(ticker, start=None, end=None, interval=None, auto_adjust=False):
             return pd.DataFrame()
     stub = types.SimpleNamespace(download=download, __version__='0.0')
+
+
     monkeypatch.setitem(sys.modules, 'yfinance', stub)
     if 'python.prefect.flows' in sys.modules:
         del sys.modules['python.prefect.flows']
@@ -20,12 +22,13 @@ def load_flows(has_threads: bool, monkeypatch):
 
 def load_app(has_threads: bool, monkeypatch):
     if has_threads:
-        def download(ticker, period=None, interval=None, progress=True, threads=True):
+        def download(ticker, period=None, interval=None, threads=True):
             return pd.DataFrame({'Close': [1]})
     else:
-        def download(ticker, period=None, interval=None, progress=True):
+        def download(ticker, period=None, interval=None):
             return pd.DataFrame({'Close': [1]})
     stub = types.SimpleNamespace(download=download, __version__='0.0')
+
     monkeypatch.setitem(sys.modules, 'yfinance', stub)
     dummy_st = types.SimpleNamespace(
         header=lambda *a, **k: None,
@@ -50,9 +53,9 @@ def test_flows_with_threads(monkeypatch):
         return pd.DataFrame()
     monkeypatch.setattr(flows, 'yf', types.SimpleNamespace(download=record))
     flows._download_with_retry('T', pd.Timestamp('2020-01-01'), pd.Timestamp('2020-01-02'), '1d', attempts=1)
-    assert flows._COMPAT_ARGS == {'progress': False, 'threads': False}
+    assert flows._COMPAT_ARGS == {'threads': False}
     assert called.get('threads') is False
-    assert called.get('progress') is False
+    assert 'progress' not in called
 
 
 def test_flows_without_threads(monkeypatch):
@@ -63,16 +66,16 @@ def test_flows_without_threads(monkeypatch):
         return pd.DataFrame()
     monkeypatch.setattr(flows, 'yf', types.SimpleNamespace(download=record))
     flows._download_with_retry('T', pd.Timestamp('2020-01-01'), pd.Timestamp('2020-01-02'), '1d', attempts=1)
-    assert flows._COMPAT_ARGS == {'progress': False}
+    assert flows._COMPAT_ARGS == {}
     assert 'threads' not in called
-    assert called.get('progress') is False
+    assert 'progress' not in called
 
 
 def test_app_with_threads(monkeypatch):
     app = load_app(True, monkeypatch)
-    assert app._COMPAT_ARGS == {'progress': False, 'threads': False}
+    assert app._COMPAT_ARGS == {'threads': False}
 
 
 def test_app_without_threads(monkeypatch):
     app = load_app(False, monkeypatch)
-    assert app._COMPAT_ARGS == {'progress': False}
+    assert app._COMPAT_ARGS == {}

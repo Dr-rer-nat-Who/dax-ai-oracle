@@ -47,7 +47,7 @@ More details are available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Run the full pipeline and start the dashboard with:
 
 ```bash
-python cli.py run-all --freq all --cleanup yes
+dax-ai-oracle run-all --freq all --cleanup yes
 ```
 
 This command ingests data, trains models, backtests, cleans up and launches the dashboard at `localhost:8501`.
@@ -152,6 +152,6 @@ After these steps the command below will ingest data, train the models,
 backtest and launch the Streamlit dashboard on `localhost:8501`:
 
 ```bash
-python cli.py run-all --freq all --cleanup yes
+dax-ai-oracle run-all --freq all --cleanup yes
 ```
 

@@ -2,24 +2,36 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+# disable SQLite caching to avoid OperationalError when cache path is unwritable
+os.environ.setdefault("YFINANCE_NO_CACHE", "1")
+import logging
 
 import pandas as pd
 import yaml
-import inspect
-import yfinance as yf
 import time
 
-_COMPAT_ARGS = {"progress": False}
+from utils.yf_compat import _COMPAT_ARGS, YFPricesMissingError
+import yfinance as yf
+
+_COMPAT_ARGS: dict[str, bool] = {}
 if "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 try:
-    from yfinance.exceptions import YFPricesMissingError  # type: ignore
-except Exception:  # pragma: no cover - fallback for tests without yfinance
+    from yfinance.exceptions import YFPricesMissingError as _OrigYFError  # type: ignore
+    class YFPricesMissingError(Exception):  # pragma: no cover - simplified
+        pass
+except Exception:  # pragma: no cover - fallback when yfinance missing
     class YFPricesMissingError(Exception):
         pass
+try:
+    from yfinance.shared._exceptions import YFNoDataError  # type: ignore
+except Exception:  # pragma: no cover - fallback for tests without yfinance
+    class YFNoDataError(Exception):
+        pass
+
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
@@ -39,12 +51,33 @@ FEATURES_DIR = ROOT_DIR / "python" / "features"
 MAX_MINUTE_SPAN = pd.Timedelta(days=8)
 
 CHECKPOINT_BASE = Path.home() / "checkpoints"
-# ensure the result storage block exists for local checkpoints
-try:
-    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
-except Exception:
-    pass
+# avoid creating Prefect storage blocks during tests
+
 CHECKPOINT_STORAGE = "local-file-system/checkpoints"
+
+
+def init() -> None:
+    """Create checkpoint directory and Prefect storage block on demand."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        CHECKPOINT_BASE.mkdir(parents=True)
+        logger.info("Created checkpoint directory %s", CHECKPOINT_BASE)
+    except FileExistsError:
+        logger.debug("Checkpoint directory %s already exists", CHECKPOINT_BASE)
+    except PermissionError as exc:
+        logger.error("Cannot create checkpoint directory %s: %s", CHECKPOINT_BASE, exc)
+        return
+
+    try:
+        LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints")
+        logger.info("Created Prefect block 'checkpoints'")
+    except FileExistsError:
+        logger.debug("Prefect block 'checkpoints' already exists")
+    except PermissionError as exc:
+        logger.error("Cannot create Prefect block 'checkpoints': %s", exc)
 
 
 def _maybe_call(task_func, *args, **kwargs):
@@ -74,6 +107,9 @@ def _download_with_retry(
     for attempt in range(attempts):
         try:
             try:
+                params = {**_COMPAT_ARGS}
+                if "progress" not in inspect.signature(yf.download).parameters:
+                    params.pop("progress", None)
                 return yf.download(
                     ticker,
                     start=start.to_pydatetime(),
@@ -84,6 +120,15 @@ def _download_with_retry(
                 )
             except TypeError:
                 # fallback for older yfinance versions without kwargs
+
+                    **params,
+                )
+
+            except TypeError:
+                params = {**_COMPAT_ARGS}
+                if "progress" not in inspect.signature(yf.download).parameters:
+                    params.pop("progress", None)
+                
                 return yf.download(
                     ticker,
                     start=start.to_pydatetime(),
@@ -91,16 +136,23 @@ def _download_with_retry(
                     interval=interval,
                     auto_adjust=False,
                     **_COMPAT_ARGS,
+                    **params,
+
                 )
 
-        except YFPricesMissingError:
+        except (YFPricesMissingError, YFNoDataError):
             raise
         except Exception as exc:  # noqa: BLE001
             if attempt < attempts - 1:
                 time.sleep(delay)
             else:
-                print(
-                    f"Warning: failed to download {ticker} {start} - {end} after {attempts} attempts: {exc}"
+                logging.warning(
+                    "failed to download %s %s - %s after %d attempts: %s",
+                    ticker,
+                    start,
+                    end,
+                    attempts,
+                    exc,
                 )
                 return None
 
@@ -169,10 +221,10 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
                 raise YFPricesMissingError("no data returned")
             new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
-    except YFPricesMissingError:
+    except (YFPricesMissingError, YFNoDataError):
         raise
     except Exception as exc:  # noqa: BLE001
-        print(f"Warning: failed to download {ticker}: {exc}")
+        logging.warning("failed to download %s: %s", ticker, exc)
         return path
 
 
