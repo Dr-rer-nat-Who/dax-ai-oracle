@@ -36,12 +36,31 @@ FEATURES_DIR = ROOT_DIR / "python" / "features"
 MAX_MINUTE_SPAN = pd.Timedelta(days=8)
 
 CHECKPOINT_BASE = Path.home() / "checkpoints"
-# ensure the result storage block exists for local checkpoints
-try:
-    LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints", overwrite=True)
-except Exception:
-    pass
 CHECKPOINT_STORAGE = "local-file-system/checkpoints"
+
+
+def init() -> None:
+    """Create checkpoint directory and Prefect storage block on demand."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        CHECKPOINT_BASE.mkdir(parents=True)
+        logger.info("Created checkpoint directory %s", CHECKPOINT_BASE)
+    except FileExistsError:
+        logger.debug("Checkpoint directory %s already exists", CHECKPOINT_BASE)
+    except PermissionError as exc:
+        logger.error("Cannot create checkpoint directory %s: %s", CHECKPOINT_BASE, exc)
+        return
+
+    try:
+        LocalFileSystem(basepath=str(CHECKPOINT_BASE)).save("checkpoints")
+        logger.info("Created Prefect block 'checkpoints'")
+    except FileExistsError:
+        logger.debug("Prefect block 'checkpoints' already exists")
+    except PermissionError as exc:
+        logger.error("Cannot create Prefect block 'checkpoints': %s", exc)
 
 
 def _maybe_call(task_func, *args, **kwargs):

@@ -3,7 +3,7 @@ from pathlib import Path
 import subprocess
 
 import yaml
-from python.prefect.flows import ingest, feature_build, backtest
+from python.prefect.flows import ingest, feature_build, backtest, init as init_prefect
 from python.prefect.train_and_evaluate import train_all
 from python.prefect.cleanup import cleanup, _disk_free_gb
 
@@ -26,6 +26,7 @@ def _ensure_disk_space(threshold_gb: float = 5.0) -> None:
 
 
 def main(argv=None):
+    init_prefect()
     parser = argparse.ArgumentParser(
         description="Command line interface for Prefect flows"
     )
