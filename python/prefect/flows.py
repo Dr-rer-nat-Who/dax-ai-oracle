@@ -71,7 +71,7 @@ def _download_with_retry(
     delay: float = 1.0,
 ) -> pd.DataFrame | None:
     """Call ``yf.download`` with a few retries on failure."""
-    for i in range(attempts):
+    for attempt in range(attempts):
         try:
             try:
                 return yf.download(
@@ -82,6 +82,7 @@ def _download_with_retry(
                 auto_adjust=False,
                 progress=False,
                 **_COMPAT_ARGS,
+
 
             )
             except TypeError:
@@ -98,7 +99,7 @@ def _download_with_retry(
         except YFPricesMissingError:
             raise
         except Exception as exc:  # noqa: BLE001
-            if i < attempts - 1:
+            if attempt < attempts - 1:
                 time.sleep(delay)
             else:
                 print(
@@ -156,8 +157,9 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
                 if chunk is None:
                     s = e
                     continue
-                if not chunk.empty:
-                    chunk.index = pd.to_datetime(chunk.index)
+                if chunk.empty:
+                    raise YFPricesMissingError("no data returned")
+                chunk.index = pd.to_datetime(chunk.index)
                 chunks.append(chunk)
                 s = e
             new = pd.concat(chunks) if chunks else pd.DataFrame()
@@ -166,12 +168,12 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
             new = _download_with_retry(ticker, start_ts, end_ts, interval)
             if new is None:
                 return path
-            if not new.empty:
-                new.index = pd.to_datetime(new.index)
+            if new.empty:
+                raise YFPricesMissingError("no data returned")
+            new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
-    except YFPricesMissingError as exc:
-        print(f"Warning: {ticker} data missing: {exc}")
-        return path
+    except YFPricesMissingError:
+        raise
     except Exception as exc:  # noqa: BLE001
         print(f"Warning: failed to download {ticker}: {exc}")
         return path
