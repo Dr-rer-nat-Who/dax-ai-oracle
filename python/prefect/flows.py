@@ -20,6 +20,11 @@ try:
 except Exception:  # pragma: no cover - fallback for tests without yfinance
     class YFPricesMissingError(Exception):
         pass
+try:
+    from yfinance.shared._exceptions import YFNoDataError  # type: ignore
+except Exception:  # pragma: no cover - fallback for tests without yfinance
+    class YFNoDataError(Exception):
+        pass
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
@@ -96,7 +101,7 @@ def _download_with_retry(
                 **_COMPAT_ARGS,
                 )
 
-        except YFPricesMissingError:
+        except (YFPricesMissingError, YFNoDataError):
             raise
         except Exception as exc:  # noqa: BLE001
             if attempt < attempts - 1:
@@ -172,7 +177,7 @@ def fetch_and_store(ticker: str, start: str, end: str, freq: str) -> Path:
                 raise YFPricesMissingError("no data returned")
             new.index = pd.to_datetime(new.index)
             df = pd.concat([existing, new]) if not existing.empty else new
-    except YFPricesMissingError:
+    except (YFPricesMissingError, YFNoDataError):
         raise
     except Exception as exc:  # noqa: BLE001
         print(f"Warning: failed to download {ticker}: {exc}")
