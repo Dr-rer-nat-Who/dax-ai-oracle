@@ -4,9 +4,10 @@ import types
 import builtins
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-
+import pandas as pd
 import streamlit as st
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 
 def load_app(yf_module):
@@ -46,6 +47,7 @@ def test_caption_without_yfinance(monkeypatch):
     assert msgs[-1] == 'yfinance unavailable'
 import pandas as pd
 import streamlit as st
+
 
 
 def reload_app(monkeypatch, import_error=False):
