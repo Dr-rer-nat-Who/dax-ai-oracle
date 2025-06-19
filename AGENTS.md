@@ -128,7 +128,7 @@ Dashboard lädt nur Pickle-Modelle + Metrics-CSV (≤ 200 kB/Modell), keine Raw-
 10 Verzeichnis­struktur
 
 .
-├── cli.py                # entrypoint: python cli.py run-all
+├── python/cli.py         # entrypoint: dax-ai-oracle run-all
 ├── configs/
 │   ├── data.yaml         # Start/End dates, tickers
 │   ├── optuna.yaml       # HP search spaces
@@ -144,7 +144,7 @@ Dashboard lädt nur Pickle-Modelle + Metrics-CSV (≤ 200 kB/Modell), keine Raw-
 │   └── cleanup.py
 └── dashboard/            # Streamlit app
 
-python cli.py run-all --freq all --cleanup yes
+dax-ai-oracle run-all --freq all --cleanup yes
 lädt Daten → trainiert → backtestet → räumt auf → startet Dashboard auf localhost:8501.
 
 ⸻
