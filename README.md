@@ -111,26 +111,20 @@ environment:
    source .venv/bin/activate
    ```
 
-4. Install PyTorch and the remaining Python requirements. For CPU only:
-
-   ```bash
-   pip install torch torchvision torchaudio
-   ```
-   For NVIDIA GPUs use the CUDA 12.1 wheels:
-
-   ```bash
-   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-   ```
-   macOS users with Apple Silicon can instead enable MPS:
+4. Install PyTorch with MPS support and the Python package (including the optional
+   dashboard dependencies):
 
    ```bash
    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/mps
+   pip install -e .[dashboard]
+
    ```
 
    Afterwards install the remaining requirements:
 
    ```bash
    pip install -r requirements.txt
+
    ```
 
 5. Install the Node dependencies for the dashboard (uses Vite/React):

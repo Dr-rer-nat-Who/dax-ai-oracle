@@ -79,7 +79,10 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
+                progress=False,
+
                 **_COMPAT_ARGS,
+
             )
         except YFPricesMissingError:
             raise
