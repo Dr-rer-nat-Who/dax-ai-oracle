@@ -9,7 +9,7 @@ import inspect
 import yfinance as yf
 import time
 
-_COMPAT_ARGS = {"progress": False}
+_COMPAT_ARGS: dict[str, bool] = {}
 if "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
 
@@ -80,7 +80,6 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
-                progress=False,
                 **_COMPAT_ARGS,
 
 
@@ -92,7 +91,6 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
-                progress=False,
                 **_COMPAT_ARGS,
                 )
 
