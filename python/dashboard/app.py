@@ -4,6 +4,7 @@ import pickle
 import time
 from pathlib import Path
 import os
+import inspect
 
 import pandas as pd
 import streamlit as st
@@ -15,6 +16,10 @@ try:  # optional, can be missing in test environment
     import yfinance as yf
 except Exception:  # pragma: no cover - optional dependency
     yf = None
+
+_COMPAT_ARGS = {"progress": False}
+if yf is not None and "threads" in inspect.signature(yf.download).parameters:
+    _COMPAT_ARGS["threads"] = False
 
 try:  # optional dependency for equity curves
     import vectorbt as vbt
@@ -48,7 +53,7 @@ def show_live() -> None:
     st.header("Live View")
     if yf is not None:
         try:
-            data = yf.download("^GDAXI", period="1d", interval="1m", threads=False)
+            data = yf.download("^GDAXI", period="1d", interval="1m", **_COMPAT_ARGS)
             st.line_chart(data["Close"])
         except Exception as exc:  # pragma: no cover - network issues
             st.warning(f"Could not download data: {exc}")

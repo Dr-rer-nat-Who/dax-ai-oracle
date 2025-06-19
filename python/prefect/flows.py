@@ -5,8 +5,13 @@ import os
 
 import pandas as pd
 import yaml
+import inspect
 import yfinance as yf
 import time
+
+_COMPAT_ARGS = {"progress": False}
+if "threads" in inspect.signature(yf.download).parameters:
+    _COMPAT_ARGS["threads"] = False
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
@@ -74,8 +79,7 @@ def _download_with_retry(
                 end=end.to_pydatetime(),
                 interval=interval,
                 auto_adjust=False,
-                progress=False,
-                threads=False,
+                **_COMPAT_ARGS,
             )
         except YFPricesMissingError:
             raise
