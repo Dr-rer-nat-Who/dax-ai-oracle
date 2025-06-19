@@ -11,7 +11,9 @@ def load_flows(has_threads: bool, monkeypatch):
     else:
         def download(ticker, start=None, end=None, interval=None, auto_adjust=False):
             return pd.DataFrame()
-    stub = types.SimpleNamespace(download=download, __version__="0.1")
+    stub = types.SimpleNamespace(download=download, __version__='0.0')
+
+
     monkeypatch.setitem(sys.modules, 'yfinance', stub)
     if 'python.prefect.flows' in sys.modules:
         del sys.modules['python.prefect.flows']
@@ -25,7 +27,8 @@ def load_app(has_threads: bool, monkeypatch):
     else:
         def download(ticker, period=None, interval=None):
             return pd.DataFrame({'Close': [1]})
-    stub = types.SimpleNamespace(download=download, __version__="0.1")
+    stub = types.SimpleNamespace(download=download, __version__='0.0')
+
     monkeypatch.setitem(sys.modules, 'yfinance', stub)
     dummy_st = types.SimpleNamespace(
         header=lambda *a, **k: None,

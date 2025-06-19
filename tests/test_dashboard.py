@@ -8,6 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
 import streamlit as st
+import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -47,6 +48,7 @@ def test_caption_without_yfinance(monkeypatch):
     monkeypatch.setattr(st.sidebar, 'caption', lambda msg: msgs.append(msg))
     load_app(None)
     assert msgs[-1] == 'yfinance unavailable'
+
 
 import pandas as pd
 import streamlit as st

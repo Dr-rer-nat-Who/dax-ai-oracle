@@ -25,7 +25,7 @@ Prefect Flows -> Data Lake (Parquet + DVC) -> Feature Pipelines
 | Hour      | 24 months     | `data/raw/1h/`     | kept |
 | Day       | 10 years      | `data/raw/1d/`     | kept |
 
-Data is pulled from `yfinance` and stored as Parquet with DVC deduplication.
+Data is pulled from `yfinance` 0.2.36 and stored as Parquet with DVC deduplication.
 Minute downloads are requested in eight-day windows to stay within the API limits.
 If a start date lies more than 30 days in the past, it is adjusted to this
 cutoff because minute history is only available for the recent month.
@@ -123,8 +123,9 @@ environment:
    Afterwards install the remaining requirements:
 
    ```bash
-   pip install -r requirements.txt
+    pip install -r requirements.txt
 
+   # yfinance 0.2.36 retains the ``progress`` argument
    ```
 
 5. Install the Node dependencies for the dashboard (uses Vite/React):

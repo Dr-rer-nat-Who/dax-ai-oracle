@@ -11,7 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 if isinstance(sys.modules.get("yfinance"), types.SimpleNamespace):
     del sys.modules["yfinance"]
 yf = importlib.import_module("yfinance")
-from yfinance.exceptions import YFPricesMissingError
+try:
+    from yfinance.exceptions import YFPricesMissingError
+except Exception:  # pragma: no cover - older yfinance
+    from python.prefect.flows import YFPricesMissingError
 
 from python.prefect.flows import _download_with_retry
 

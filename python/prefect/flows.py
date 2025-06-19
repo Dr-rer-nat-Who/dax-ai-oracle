@@ -116,6 +116,11 @@ def _download_with_retry(
                     end=end.to_pydatetime(),
                     interval=interval,
                     auto_adjust=False,
+                    **_COMPAT_ARGS,
+                )
+            except TypeError:
+                # fallback for older yfinance versions without kwargs
+
                     **params,
                 )
 
@@ -123,12 +128,14 @@ def _download_with_retry(
                 params = {**_COMPAT_ARGS}
                 if "progress" not in inspect.signature(yf.download).parameters:
                     params.pop("progress", None)
+                
                 return yf.download(
                     ticker,
                     start=start.to_pydatetime(),
                     end=end.to_pydatetime(),
                     interval=interval,
                     auto_adjust=False,
+                    **_COMPAT_ARGS,
                     **params,
 
                 )
