@@ -3,27 +3,28 @@ import subprocess
 import sys
 import os
 import inspect
+
+
+import logging
+
+
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
-import logging
 
 import pandas as pd
 import yaml
 import time
 
 from ..utils.yf_compat import YFPricesMissingError
+
+from utils.yf_compat import _COMPAT_ARGS
 import yfinance as yf
 
-_COMPAT_ARGS: dict[str, bool] = {}
-if "threads" in inspect.signature(yf.download).parameters:
-    _COMPAT_ARGS["threads"] = False
 
 # disable SQLite caching to avoid OperationalError when cache path is unwritable
 os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 try:
-    from yfinance.exceptions import YFPricesMissingError as _OrigYFError  # type: ignore
-    class YFPricesMissingError(Exception):  # pragma: no cover - simplified
-        pass
+    from yfinance.exceptions import YFPricesMissingError  # type: ignore
 except Exception:  # pragma: no cover - fallback when yfinance missing
     class YFPricesMissingError(Exception):
         pass
@@ -109,6 +110,7 @@ def _download_with_retry(
 ) -> pd.DataFrame | None:
     """Call ``yf.download`` with a few retries on failure."""
     params = {"progress": False, **_COMPAT_ARGS}
+
     if "progress" not in inspect.signature(yf.download).parameters:
         params.pop("progress", None)
 
@@ -123,14 +125,43 @@ def _download_with_retry(
                 **params,
             )
         except TypeError:
-            # older yfinance did not accept keyword arguments like ``progress``
-            return yf.download(
-                ticker,
-                start=start.to_pydatetime(),
-                end=end.to_pydatetime(),
-                interval=interval,
-                auto_adjust=False,
-            )
+
+            try:
+                return yf.download(
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                )
+            except TypeError:
+                # fallback for older yfinance versions without kwargs
+                return yf.download(
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **params,
+                )
+
+            except TypeError:
+                params = {**_COMPAT_ARGS}
+                if "progress" not in inspect.signature(yf.download).parameters:
+                    params.pop("progress", None)
+                
+                return yf.download(
+                    ticker,
+                    start=start.to_pydatetime(),
+                    end=end.to_pydatetime(),
+                    interval=interval,
+                    auto_adjust=False,
+                    **_COMPAT_ARGS,
+                    **params,
+
+                )
+
+
         except (YFPricesMissingError, YFNoDataError):
             raise
         except Exception as exc:  # noqa: BLE001

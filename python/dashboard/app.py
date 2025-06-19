@@ -11,6 +11,7 @@ os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 import pandas as pd
 import streamlit as st
 from ..utils.yf_compat import _COMPAT_ARGS
+import inspect
 
 try:  # optional, can be missing in test environment
     import yfinance as yf
