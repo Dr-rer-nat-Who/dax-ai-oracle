@@ -50,7 +50,7 @@ def test_flows_with_threads(monkeypatch):
         return pd.DataFrame()
     monkeypatch.setattr(flows, 'yf', types.SimpleNamespace(download=record))
     flows._download_with_retry('T', pd.Timestamp('2020-01-01'), pd.Timestamp('2020-01-02'), '1d', attempts=1)
-    assert flows._COMPAT_ARGS == {'progress': False, 'threads': False}
+    assert flows._COMPAT_ARGS == {'threads': False}
     assert called.get('threads') is False
     assert 'progress' not in called
 
@@ -63,16 +63,16 @@ def test_flows_without_threads(monkeypatch):
         return pd.DataFrame()
     monkeypatch.setattr(flows, 'yf', types.SimpleNamespace(download=record))
     flows._download_with_retry('T', pd.Timestamp('2020-01-01'), pd.Timestamp('2020-01-02'), '1d', attempts=1)
-    assert flows._COMPAT_ARGS == {'progress': False}
+    assert flows._COMPAT_ARGS == {}
     assert 'threads' not in called
     assert 'progress' not in called
 
 
 def test_app_with_threads(monkeypatch):
     app = load_app(True, monkeypatch)
-    assert app._COMPAT_ARGS == {'progress': False, 'threads': False}
+    assert app._COMPAT_ARGS == {'threads': False}
 
 
 def test_app_without_threads(monkeypatch):
     app = load_app(False, monkeypatch)
-    assert app._COMPAT_ARGS == {'progress': False}
+    assert app._COMPAT_ARGS == {}

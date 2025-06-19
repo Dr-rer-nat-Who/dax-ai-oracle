@@ -9,6 +9,7 @@ def test_run_all_invokes_flows(monkeypatch):
         def inner(*args, **kwargs):
             calls.append(name)
         return inner
+    monkeypatch.setattr(cli, "init_prefect", lambda: None)
     monkeypatch.setattr(cli, "ingest", record("ingest"))
     monkeypatch.setattr(cli, "feature_build", record("feature_build"))
     monkeypatch.setattr(cli, "train_all", record("train_all"))

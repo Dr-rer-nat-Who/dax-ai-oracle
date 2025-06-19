@@ -24,7 +24,7 @@ dashboard = ["plotly", "vectorbt"]
 experiments = ["prophet"]
 
 [project.scripts]
-dax-oracle = "python.cli:main"
+dax-ai-oracle = "python.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

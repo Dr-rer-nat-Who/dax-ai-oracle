@@ -82,7 +82,7 @@ Streamlit (auto refresh every 60 s) exposes live signals, a leaderboard and pe
 ## 10. Directory Layout
 
 ```text
-cli.py
+python/cli.py
 configs/
     data.yaml
     optuna.yaml
@@ -104,7 +104,7 @@ dashboard/
 Run everything via
 
 ```bash
-python cli.py run-all --freq all --cleanup yes
+dax-ai-oracle run-all --freq all --cleanup yes
 ```
 
 which ingests data, trains models, backtests, cleans up and launches the dashboard at `localhost:8501`.
