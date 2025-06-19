@@ -75,7 +75,6 @@ def _download_with_retry(
                 interval=interval,
                 auto_adjust=False,
                 progress=False,
-                threads=False,
             )
         except YFPricesMissingError:
             raise

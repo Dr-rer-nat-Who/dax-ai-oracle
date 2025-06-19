@@ -103,11 +103,12 @@ environment:
    source .venv/bin/activate
    ```
 
-4. Install PyTorch with MPS support and the remaining Python requirements:
+4. Install PyTorch with MPS support and the Python package (including the optional
+   dashboard dependencies):
 
    ```bash
    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/mps
-   pip install -r requirements.txt
+   pip install -e .[dashboard]
    ```
 
 5. Install the Node dependencies for the dashboard (uses Vite/React):
