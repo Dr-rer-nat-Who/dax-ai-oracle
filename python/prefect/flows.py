@@ -73,7 +73,8 @@ def _download_with_retry(
     """Call ``yf.download`` with a few retries on failure."""
     for i in range(attempts):
         try:
-            return yf.download(
+            try:
+                return yf.download(
                 ticker,
                 start=start.to_pydatetime(),
                 end=end.to_pydatetime(),
@@ -83,6 +84,17 @@ def _download_with_retry(
                 **_COMPAT_ARGS,
 
             )
+            except TypeError:
+                return yf.download(
+                   ticker,
+                start=start.to_pydatetime(),
+                end=end.to_pydatetime(),
+                interval=interval,
+                auto_adjust=False,
+                progress=False,
+                **_COMPAT_ARGS,
+                )
+
         except YFPricesMissingError:
             raise
         except Exception as exc:  # noqa: BLE001
