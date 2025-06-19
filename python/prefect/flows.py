@@ -2,6 +2,8 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+# disable SQLite caching to avoid OperationalError when cache path is unwritable
+os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 import logging
 
 import pandas as pd
@@ -14,9 +16,6 @@ import yfinance as yf
 _COMPAT_ARGS: dict[str, bool] = {}
 if "threads" in inspect.signature(yf.download).parameters:
     _COMPAT_ARGS["threads"] = False
-
-# disable SQLite caching to avoid OperationalError when cache path is unwritable
-os.environ.setdefault("YFINANCE_NO_CACHE", "1")
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.runtime.flow_run import FlowRunContext
